@@ -9,6 +9,7 @@ import { Network } from "@xchainjs/xchain-client"
 import { assetAmount, assetFromStringEx, delay, assetToBase, Asset} from '@xchainjs/xchain-util'
 import { AssetRuneNative } from '@xchainjs/xchain-thorchain'
 import { ema, macd, MacdResult, rsi } from 'indicatorts'
+import price from '../priceData/1mBTCData.json'
 
 require('dotenv').config();
 
@@ -410,7 +411,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
      * @param interval 
      */
     private async writeToFile(chart: number[], interval: string) {
-      fs.writeFileSync(`./${interval}${this.asset.ticker}Data.json`, JSON.stringify(chart, null, 4), 'utf8')
+      fs.writeFileSync(`./priceData/${interval}${this.asset.ticker}Data.json`, JSON.stringify(chart, null, 4), 'utf8')
     }
 
     private async writeTXToFile(transaction: TxDetail) { 
@@ -428,7 +429,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
       
 
     private async readFromFile(chartInterval: string){
-      const result: number[] = JSON.parse(fs.readFileSync(`./${chartInterval}BTCData.json`, 'utf8'))
+      const result: number[] = JSON.parse(fs.readFileSync(`./priceData/${chartInterval}BTCData.json`, 'utf8'))
       const chopped = result.slice(-360)
       for( var i = 0; i < chopped.length; i++){
         let resp = result[i]
