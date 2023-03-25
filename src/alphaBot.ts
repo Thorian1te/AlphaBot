@@ -169,6 +169,7 @@ export class AlphaBot {
         }
 
         if(this.fiveMinuteChart.length <= 72) {
+          console.log(`here, ${this.fiveMinuteChart.slice(-1)} ${this.fiveMinuteChart.length}`)
           await this.writeToFile(this.fiveMinuteChart, interval)
         } else {
           const lastEntry: number[] = []
@@ -432,7 +433,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
       const result: number[] = JSON.parse(fs.readFileSync(`./priceData/${chartInterval}BTCData.json`, 'utf8'))
       const chopped = result.slice(-360)
       for( var i = 0; i < chopped.length; i++){
-        let resp = result[i]
+        let resp = chopped[i]
         if(resp != null) {
           this.intervalSwitch(chartInterval, resp)
         }
