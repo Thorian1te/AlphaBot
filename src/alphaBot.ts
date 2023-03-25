@@ -9,7 +9,6 @@ import { Network } from "@xchainjs/xchain-client"
 import { assetAmount, assetFromStringEx, delay, assetToBase, Asset} from '@xchainjs/xchain-util'
 import { AssetRuneNative } from '@xchainjs/xchain-thorchain'
 import { ema, macd, MacdResult, rsi } from 'indicatorts'
-import price from '../priceData/1mBTCData.json'
 
 require('dotenv').config();
 
@@ -76,7 +75,7 @@ export class AlphaBot {
       let info = await this.getAlphaBotInfo()
       while (info.botMode !== BotMode.stop) { // need to figure out a way to start and stop this. 
         // select a random action
-
+        
         const action = await this.marketType()
         console.log(action)
         if(action === 'buy' || action === 'sell') {
@@ -103,7 +102,6 @@ export class AlphaBot {
     }
   }
   private async marketType(): Promise<string> {
-
     const macd = await this.getMacd(this.fiveMinuteChart)
     await this.getRsi(this.fiveMinuteChart)
     const buySignal = await this.buySignal(macd, this.rsi)
@@ -157,49 +155,35 @@ export class AlphaBot {
     }
   }
   public async dataCollectionFiveMinutes(start: Boolean, interval: ChartInterval) {
-    this.asset = assetsBTC
-    console.log(`Collecting ${this.asset.ticker} pool price at interval ${interval}`)
-    console.log(`Five minute chart: `, this.fiveMinuteChart[this.fiveMinuteChart.length -1])
-    while(start) {
-        // Extra values from one Minute chart
-        for (let i = 0; i < this.oneMinuteChart.length; i++) {
-          if ((i + 1) % 5 === 0) {
-            await this.intervalSwitch(interval, this.oneMinuteChart[i])
-          }
-        }
-
-        if(this.fiveMinuteChart.length <= 72) {
-          console.log(`here, ${this.fiveMinuteChart.slice(-1)} ${this.fiveMinuteChart.length}`)
-          await this.writeToFile(this.fiveMinuteChart, interval)
-        } else {
-          const lastEntry: number[] = []
-          lastEntry.push(this.fiveMinuteChart[this.fiveMinuteChart.length -1])
-          await this.writeToFile(lastEntry, interval)
-        }
-        await delay(oneMinuteInMs * 5)
+    while (start) {
+      const filtered = this.oneMinuteChart.filter((value, index) => (index + 1) % 5 === 0)
+      if(this.fiveMinuteChart.length < 1) {
+        this.fiveMinuteChart.push(...filtered)
+      } else {
+        const lastEntryFive = this.fiveMinuteChart[this.fiveMinuteChart.length -1]
+        const lastFilterd = filtered[filtered.length -1]
+        if(lastFilterd !== lastEntryFive) {
+          this.fiveMinuteChart.push(lastFilterd)
+        } 
+      }
+      await this.writeToFile(this.fiveMinuteChart, interval)
+      await delay(oneMinuteInMs * 5)
     }
   }
   public async dataCollectionHalfHour(start: Boolean, interval: ChartInterval) {
-    this.asset = assetsBTC
-    console.log(`Collecting ${this.asset.ticker} pool price at interval ${interval}`)
-    const highlow = await this.findHighAndLowValues(this.halfHourChart)
-    console.log(`Half hour chart, chart highs${highlow.high} and lows:${highlow.low} `)
-    while(start) {
-        // Thirty minutes
-        // Extra values from one Minute chart 
-        for (let i = 0; i < this.oneMinuteChart.length; i++) {
-          if ((i + 1) % 30 === 0) {
-            await this.intervalSwitch(interval, this.oneMinuteChart[i])
-          }
-        }
-        if(this.halfHourChart.length <= 12) {
-          await this.writeToFile(this.halfHourChart, interval)
-        } else {
-          const lastEntry: number[] = []
-          lastEntry.push(this.halfHourChart[this.halfHourChart.length -1])
-          await this.writeToFile(lastEntry, interval)
-        }
-        await delay(oneMinuteInMs * 30)
+    while (start) {
+      const filtered = this.oneMinuteChart.filter((value, index) => (index + 1) % 30 === 0)
+      if(this.halfHourChart.length < 1) {
+        this.halfHourChart.push(...filtered)
+      } else {
+        const lastEntryFive = this.halfHourChart[this.halfHourChart.length -1]
+        const lastFilterd = filtered[filtered.length -1]
+        if(lastFilterd !== lastEntryFive) {
+          this.halfHourChart.push(lastFilterd)
+        } 
+      }
+      await this.writeToFile(this.halfHourChart, interval)
+      await delay(oneMinuteInMs * 5)
     }
   }
 /** Fetch price function 
