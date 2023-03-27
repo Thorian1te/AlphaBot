@@ -37,10 +37,6 @@ export type ExponentialMovingAverage = {
     value: Number
 }
 
-export type Price = {
-    interval: string
-    price: number[]
-}
 
 export type BotInfo = {
     botMode: BotMode
@@ -59,8 +55,14 @@ export enum ChartInterval {
 
 export type PriceData = {
     asset: Asset
-    interval: ChartInterval
+    interval: string
     time: Date
+}
+
+export type Action = {
+    action: string
+    price: PriceData
+    rsi: number
 }
 export type Time = {
     timeInSeconds: Number,

@@ -7,7 +7,7 @@ import { Network } from "@xchainjs/xchain-client"
 import { Client, getBalance, THORChain, ThorchainClient } from '@xchainjs/xchain-thorchain'
 import { assetAmount, assetFromStringEx, delay, assetToBase, Asset, baseToAsset, baseAmount} from '@xchainjs/xchain-util'
 import { doSingleSwap } from './doSwap'
-import { BotInfo, BotMode, ChartInterval, HighAndLow, Signal, SwapDetail, SynthBalance, Time, TradingWallet, TxDetail } from './types'
+import { Action, BotInfo, BotMode, ChartInterval, HighAndLow, Signal, SwapDetail, SynthBalance, Time, TradingWallet, TxDetail } from './types'
 
 import { ema, macd, MacdResult, rsi } from 'indicatorts'
 
@@ -35,6 +35,7 @@ export class AlphaBot {
   public halfHourChart: number[] = []
   public OneHourChart: number[] = []
   public rsi: number[] = []
+  private signalTracker: string[] = []
 
   private thorchainAmm: ThorchainAMM
   private keystore1FilePath: string
@@ -76,6 +77,8 @@ export class AlphaBot {
 
 
   async start(interval:string) {
+      console.log(`Start time: ${this.botConfig.startTime}`)
+      setInterval(this.readFromFile, 1440 * 60 * 1000 )
       console.log('Setting up wallet')
       await this.walletSetup()
       console.log('Running AlphaBot....')
@@ -117,10 +120,10 @@ export class AlphaBot {
     const rsiHighLow = await this.findHighAndLowValues(this.rsi.slice(-12))
     console.log(`Collecting trading signals for ${interval}`)
     console.log(`Rsi: ${this.rsi[this.rsi.length -1]}`)
-    console.log(`Rsi last hour, High ${rsiHighLow.high} and lows: ${rsiHighLow.low}`)
+    console.log(`Rsi last 3 hours, High ${rsiHighLow.high} and lows: ${rsiHighLow.low}`)
     let sellSignal: Signal
     let buySignal: Signal
-    console.log(this.botConfig.startTime)
+
     console.log(`Last Price: ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length -1]}`)
     if (this.fiveMinuteChart.length -1 < 72) {
       const percentageComplete = this.fiveMinuteChart.length -1 / 72 * 100
@@ -144,18 +147,12 @@ export class AlphaBot {
   public async dataCollectionMinute(start: Boolean, interval: ChartInterval) {
     this.asset = assetsBTC
     console.log(`Collecting ${this.asset.ticker} pool price`)
-    await this.readFromFile(interval)
+    await this.readFromFile()
     const highlow = await this.findHighAndLowValues(this.oneMinuteChart)
     console.log(`One minute chart highs and lows`, highlow)
 
     while(start) { 
         // One minute
-        let runningTime: Time
-        runningTime = await this.timeCorrection(this.botConfig.startTime)
-        if(runningTime.timeInMinutes > 1440) {
-          await this.readFromFile(interval)
-          runningTime.timeInMinutes = 0
-        }
         await this.getAssetPrice(interval)
         await this.writeToFile(this.oneMinuteChart,  interval)
         await delay(oneMinuteInMs)
@@ -191,7 +188,7 @@ export class AlphaBot {
         } 
       }
       await this.writeToFile(this.fifteenMinuteChart, interval)
-      await delay(oneMinuteInMs * 5)
+      await delay(oneMinuteInMs * 15)
     }
   }
   public async dataCollectionHalfHour(start: Boolean, interval: ChartInterval) {
@@ -207,7 +204,7 @@ export class AlphaBot {
         } 
       }
       await this.writeToFile(this.halfHourChart, interval)
-      await delay(oneMinuteInMs * 5)
+      await delay(oneMinuteInMs * 30)
     }
   }
   public async dataCollectionOneHour(start: Boolean, interval: ChartInterval) {
@@ -223,7 +220,10 @@ export class AlphaBot {
         } 
       }
       await this.writeToFile(this.OneHourChart, interval)
-      await delay(oneMinuteInMs * 5)
+      if(this.signalTracker.length > 1) {
+        await this.writeSignalToFile(this.signalTracker)
+      }
+      await delay(oneMinuteInMs * 60)
     }
   }
 /** Fe
@@ -237,32 +237,9 @@ private async getAssetPrice(chartInterval: string) {
     const assetPool = await this.thorchainCache.getPoolForAsset(this.asset)
     const assetPrice = Number(assetPool.pool.assetPriceUSD)
     const price = Number(assetPrice.toFixed(2))
-    this.intervalSwitch(chartInterval, price)
+    this.oneMinuteChart.push(price)
   } catch (err) {
     console.log(`Error fetching price ${err}`)
-  }
-}
-
-
-private async intervalSwitch(interval: string, price: number) {
-  switch (interval){
-      case '1m':
-          this.oneMinuteChart.push(price)
-          break
-      case `5m`:
-          this.fiveMinuteChart.push(price)
-          break
-      case `15m`:
-        this.fiveMinuteChart.push(price)
-        break
-      case `30m`:
-          this.halfHourChart.push(price)
-          break
-      case `1hr`:
-          this.OneHourChart.push(price)
-          break
-      default:
-          break
   }
 }
 
@@ -335,7 +312,6 @@ public async getMacd(closings: number[]): Promise<MacdResult> {
 private async isRSIBuySignal(period: number, rsiLowerThreshold: number): Promise<Boolean> {
   // Get the current RSI value
   const currentRSI = this.rsi[this.rsi.length - 1]
-  const previousRSI = this.rsi[this.rsi.length - 2]
 
   if (currentRSI < rsiLowerThreshold) {
     // Check if the RSI value falls below the lower threshold
@@ -361,7 +337,6 @@ private async isRSIBuySignal(period: number, rsiLowerThreshold: number): Promise
 private async isRSISellSignal(period: number, rsiUpperThreshold: number): Promise<Boolean> {
   // Get the current RSI value
   const currentRSI = this.rsi[this.rsi.length - 1];
-  const previousRSI = this.rsi[this.rsi.length - 2];
 
   if (currentRSI > rsiUpperThreshold) {
     // Check if the RSI value rises above the upper threshold
@@ -383,12 +358,13 @@ private async buySignal(macdResult: MacdResult, rsi: number[]): Promise<Signal> 
     let macdSignal: Boolean
     let rsiSignal: Boolean
     let signalType = "buy"
-    const rsiLowerThreshold = 25
+    const rsiLowerThreshold = 22
     const currentPeriod = macdResult.macdLine.length - 1
     const previousPeriod = currentPeriod - 1
     if (macdResult.macdLine[currentPeriod] < macdResult.signalLine[currentPeriod] && macdResult.macdLine[previousPeriod] > macdResult.signalLine[previousPeriod]) {
     // MACD line just crossed below the signal line, generate a buy signal
       console.log(`Macd just crossed on the signal`)
+     
       macdSignal = true
     }else {
       console.log(`Current macd period: ${macdResult.macdLine[currentPeriod]}` )
@@ -396,7 +372,11 @@ private async buySignal(macdResult: MacdResult, rsi: number[]): Promise<Signal> 
       macdSignal = false
     }
     const rsiData = await this.valueDirection(rsi, 14)
+    console.log(`Price direction ${rsiData}`)
     rsiSignal = await this.isRSIBuySignal(1, rsiLowerThreshold)
+    if(macdSignal || rsiSignal) { 
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}`)
+    }
     const signal: Signal = {
       type: signalType,
       macd: macdSignal,
@@ -408,7 +388,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
   let macdSignal: Boolean
   let rsiSignal: Boolean
   let signalType = "sell"
-  const rsiUpperThreshold = 70
+  const rsiUpperThreshold = 72
 
   const lastMacd = macdResult.macdLine[macdResult.macdLine.length - 1]
   const secondLastMacd = macdResult.macdLine[macdResult.macdLine.length - 2]
@@ -418,6 +398,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
   if (secondLastSignal > secondLastMacd && lastSignal <= lastMacd) {
     // MACD line just crossed above the signal line, generate a sell signal
     console.log("Macd just crossed above the signal")
+    
     macdSignal = true
   } else {
     console.log(`Current period macd: ${lastMacd}`)
@@ -426,8 +407,11 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
   }
 
   const rsiData = await this.valueDirection(rsi, 14)
+  console.log(`Price direction ${rsiData}`)
   rsiSignal = await this.isRSISellSignal(1, rsiUpperThreshold)
-
+  if(macdSignal || rsiSignal) {
+    this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${signalType}`)
+  }
   const signal: Signal = {
     type: signalType,
     macd: macdSignal,
@@ -464,28 +448,25 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
     private async writeTXToFile(transaction: TxDetail) { 
       fs.writeFileSync(`./${transaction.date}txRecords.json`, JSON.stringify(transaction, null, 4), 'utf8')
     }
-
-      /**
-   * 
-   * @param chart 
-   * @param interval 
-   */
-    private async botConfigWrite(botInfo: BotInfo) {
-      fs.writeFileSync(`./botConfig.json`, JSON.stringify(botInfo, null, 4), 'utf8')
+    private async writeSignalToFile(signal: string[]) { 
+      const currentTime = new Date()
+      fs.writeFileSync(`./${currentTime}Signal.json`, JSON.stringify(signal, null, 4), 'utf8')
     }
+
       
     /**
      * 
      * @param chartInterval - input
      */
-    private async readFromFile(chartInterval: string): Promise<void> {
+    private async readFromFile(){
+      const chartInterval = ChartInterval.OneMinute
       const result: number[] = JSON.parse(fs.readFileSync(`./priceData/${chartInterval}BTCData.json`, 'utf8'))
       const chopped = result.slice(-720)
       
       for (let i = 0; i < chopped.length; i++) {
         let resp = chopped[i]
         if (resp != null) {
-          this.intervalSwitch(chartInterval, resp)
+          this.oneMinuteChart.push(resp)
         }
       }
     }
