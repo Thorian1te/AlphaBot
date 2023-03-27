@@ -75,7 +75,7 @@ export class AlphaBot {
 
 
 
-  async start() {
+  async start(interval:string) {
       console.log('Setting up wallet')
       await this.walletSetup()
       console.log('Running AlphaBot....')
@@ -85,7 +85,7 @@ export class AlphaBot {
       while (this.botConfig.botMode !== BotMode.stop) { // need to figure out a way to start and stop this. 
         // select a random action
         
-        const action = await this.marketType()
+        const action = await this.marketType(interval)
         console.log(action)
         if(action === 'buy' || action === 'sell') {
           await this.writeToFile(this.oneMinuteChart.slice(-10), action)
@@ -110,12 +110,12 @@ export class AlphaBot {
         break
     }
   }
-  private async marketType(): Promise<string> {
+  private async marketType(interval: string): Promise<string> {
     let market: string
     const macd = await this.getMacd(this.fifteenMinuteChart)
     await this.getRsi(this.fifteenMinuteChart)
     const rsiHighLow = await this.findHighAndLowValues(this.rsi.slice(-12))
-    console.log(`Collecting trading signals for ${ChartInterval.FiveMinute}`)
+    console.log(`Collecting trading signals for ${interval}`)
     console.log(`Rsi: ${this.rsi[this.rsi.length -1]}`)
     console.log(`Rsi last hour, High ${rsiHighLow.high} and lows: ${rsiHighLow.low}`)
     let sellSignal: Signal
@@ -180,7 +180,7 @@ export class AlphaBot {
   }
   public async dataCollectionFifteenMinutes(start: Boolean, interval: ChartInterval) {
     while (start) {
-      const filtered = this.oneMinuteChart.filter((value, index) => (index + 1) % 5 === 0)
+      const filtered = this.oneMinuteChart.filter((value, index) => (index + 1) % 15 === 0)
       if(this.fifteenMinuteChart.length < 1) {
         this.fifteenMinuteChart.push(...filtered)
       } else {
@@ -280,6 +280,7 @@ private async getTimeDifference(startTime: Date ): Promise<Time> {
 private async checkMarketType(signal: Signal): Promise<string> {
   const hasTxRecords = this.txRecords.length > 0
   const lastTxAction = hasTxRecords ? this.txRecords[this.txRecords.length - 1].action : 'idle'
+  const bal = await this.getSynthBalance()
   if(signal.type === "buy" && signal.rsi && signal.macd && lastTxAction != 'buy'){
     return 'buy'
   } else if (signal.type === "sell", signal.rsi && signal.macd && lastTxAction != 'sell') {
@@ -593,12 +594,19 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
       this.txRecords.push(txRecord)
       await this.writeTXToFile(txRecord)
     }
-
+    /**
+     * 
+     * @param botStartTime - the time the bot went live
+     * @returns - Time difference between current time and bot to live 
+     */
     public async timeCorrection(botStartTime: Date): Promise<Time>{
       const difference = await this.getTimeDifference(botStartTime)
       return difference
     }
-
+    /**
+     * 
+     * @returns - Synth balance for the wallet
+     */
     private async getSynthBalance(): Promise<SynthBalance>{
       let synthbtc = assetsBTC
       let synthBUSD = assetsBUSD
