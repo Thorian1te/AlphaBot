@@ -102,21 +102,30 @@ export class AlphaBot {
     }
   }
   private async marketType(): Promise<string> {
-    const macd = await this.getMacd(this.fiveMinuteChart)
-    await this.getRsi(this.fiveMinuteChart)
-    const buySignal = await this.buySignal(macd, this.rsi)
-    const sellSignal = await this.sellSignal(macd, this.rsi)
+    let market: string
+    const macd = await this.getMacd(this.halfHourChart)
+    await this.getRsi(this.halfHourChart)
     const rsiHighLow = await this.findHighAndLowValues(this.rsi)
-    console.log(`Signal to buy: macd: ${buySignal.macd}, rsi: ${buySignal.rsi}`)
-    console.log(`Signal to sell: macd: ${sellSignal.macd}, rsi: ${sellSignal.rsi}`)
     console.log(`Rsi: ${this.rsi[this.rsi.length -1]}, High ${rsiHighLow.high} and lows: ${rsiHighLow.low}`)
+    let sellSignal: Signal
+    let buySignal: Signal
+
     console.log(`Last Price: ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length -1]}`)
-    if (this.fiveMinuteChart.length -1 < 70) {
+    if (this.fiveMinuteChart.length -1 < 72) {
       const percentageComplete = this.fiveMinuteChart.length -1 / 72 * 100
       console.log(`Alphabot is waiting for data maturity % ${percentageComplete.toFixed()} `)
       return 'idle'
     } else {
-      const market = await this.checkMarketType(buySignal, sellSignal)
+      if (this.rsi[this.rsi.length - 1] > 50) {
+        sellSignal = await this.sellSignal(macd, this.rsi)
+        console.log(`Signal to sell: macd: ${sellSignal.macd}, rsi: ${sellSignal.rsi}`)
+        market = await this.checkMarketType(sellSignal)
+      } else {
+        buySignal = await this.buySignal(macd, this.rsi)
+        console.log(`Signal to buy: macd: ${buySignal.macd}, rsi: ${buySignal.rsi}`)
+        market = await this.checkMarketType(buySignal)
+      }
+      
       return market
     }
   }
@@ -186,6 +195,23 @@ export class AlphaBot {
       await delay(oneMinuteInMs * 5)
     }
   }
+  public async dataCollectionOneHour(start: Boolean, interval: ChartInterval) {
+    while (start) {
+      const filtered = this.oneMinuteChart.filter((value, index) => (index + 1) % 60 === 0)
+      if(this.OneHourChart.length < 1) {
+        this.OneHourChart.push(...filtered)
+      } else {
+        const lastEntryFive = this.OneHourChart[this.OneHourChart.length -1]
+        const lastFilterd = filtered[filtered.length -1]
+        if(lastFilterd !== lastEntryFive) {
+          this.OneHourChart.push(lastFilterd)
+        } 
+      }
+      await this.writeToFile(this.OneHourChart, interval)
+      await delay(oneMinuteInMs * 5)
+    }
+  }
+/** Fe
 /** Fetch price function 
  * 
  * @param chartInterval - chart interval in minutes
@@ -233,13 +259,16 @@ private async getTimeDifference(startTime: Date ): Promise<Time> {
   return time
 }
 
-private async checkMarketType(buySignal: Signal, sellSignal: Signal): Promise<string> {
-  const lastTxAction = this.txRecords.length > 0 ? this.txRecords[-1].action : 'idle'
-  console.log(this.txRecords[0])
+private async checkMarketType(signal: Signal): Promise<string> {
+  const hasTxRecords = this.txRecords.length > 0
+  const lastTxAction = hasTxRecords ? this.txRecords[this.txRecords.length - 1].action : 'idle'
+  const sellOrderConfirmed = hasTxRecords ? this.txRecords[0] : 'Tx Records: 0'
+  console.log(sellOrderConfirmed)
   console.log(lastTxAction)
-  if(buySignal.rsi && lastTxAction != 'buy'){
+
+  if(signal.type === "buy" && signal.rsi && signal.macd && lastTxAction != 'buy'){
     return 'buy'
-  } else if (sellSignal.rsi && lastTxAction != 'sell') {
+  } else if (signal.type === "sell", signal.rsi && signal.macd && lastTxAction != 'sell') {
     return 'sell'
   } else {
     return 'idle'
@@ -288,16 +317,21 @@ public async getMacd(closings: number[]): Promise<MacdResult> {
  * @param rsiLowerThreshold 
  * @returns 
  */
-private async isRSIBuySignal( period: number, rsiLowerThreshold: number): Promise<Boolean> {
-   // Get the current RSI value
-   const currentRSI = this.rsi[this.rsi.length -1]
-   const previousRSI = this.rsi[this.rsi.length -2]
-  if (currentRSI < rsiLowerThreshold) { // Check if the RSI value falls below the lower threshold
+private async isRSIBuySignal(period: number, rsiLowerThreshold: number): Promise<Boolean> {
+  // Get the current RSI value
+  const currentRSI = this.rsi[this.rsi.length - 1]
+  const previousRSI = this.rsi[this.rsi.length - 2]
+
+  if (currentRSI < rsiLowerThreshold) {
+    // Check if the RSI value falls below the lower threshold
     // Wait for the RSI value to cross back above the lower threshold
     for (let i = period; i < this.fiveMinuteChart.length; i++) {
-      if (previousRSI < rsiLowerThreshold && currentRSI >= rsiLowerThreshold) {
-        console.log(`Rsi dipped below threshold and is rebounding`)
-        return true; // Buy signal confirmed
+      const currentRSIInLoop = this.rsi[i]
+      const previousRSIInLoop = this.rsi[i - 1]
+
+      if (previousRSIInLoop < rsiLowerThreshold && currentRSIInLoop >= rsiLowerThreshold) {
+        console.log("Rsi dipped below threshold and is rebounding")
+        return true // Buy signal confirmed
       }
     }
   }
@@ -309,31 +343,36 @@ private async isRSIBuySignal( period: number, rsiLowerThreshold: number): Promis
  * @param rsiUpperThreshold 
  * @returns 
  */
-private async isRSISellSignal( period: number, rsiUpperThreshold: number): Promise<Boolean> {
+private async isRSISellSignal(period: number, rsiUpperThreshold: number): Promise<Boolean> {
   // Get the current RSI value
-  const currentRSI = this.rsi[this.rsi.length -1]
-  const previousRSI = this.rsi[this.rsi.length -2]
- if (currentRSI > rsiUpperThreshold) { // Check if the RSI value falls below the lower threshold
-   // Wait for the RSI value to cross back above the lower threshold
-   for (let i = period; i < this.fiveMinuteChart.length; i++) {
-     if (previousRSI > rsiUpperThreshold && currentRSI >= rsiUpperThreshold) {
-       console.log(`Rsi is above sell threshold and is returning`)
-       return true; // Buy signal confirmed
-     }
-   }
- }
- return false; // No buy signal detected
+  const currentRSI = this.rsi[this.rsi.length - 1];
+  const previousRSI = this.rsi[this.rsi.length - 2];
+
+  if (currentRSI > rsiUpperThreshold) {
+    // Check if the RSI value rises above the upper threshold
+    // Wait for the RSI value to cross back below the upper threshold
+    for (let i = period; i < this.fiveMinuteChart.length; i++) {
+      const currentRSIInLoop = this.rsi[i];
+      const previousRSIInLoop = this.rsi[i - 1];
+
+      if (previousRSIInLoop > rsiUpperThreshold && currentRSIInLoop <= rsiUpperThreshold) {
+        console.log("Rsi is above sell threshold and is returning");
+        return true; // Sell signal confirmed
+      }
+    }
+  }
+  return false; // No sell signal detected
 }
 
 private async buySignal(macdResult: MacdResult, rsi: number[]): Promise<Signal> {
     let macdSignal: Boolean
     let rsiSignal: Boolean
-
+    let signalType = "buy"
     const rsiLowerThreshold = 25
     const currentPeriod = macdResult.macdLine.length - 1
     const previousPeriod = currentPeriod - 1
     if (macdResult.macdLine[currentPeriod] < macdResult.signalLine[currentPeriod] && macdResult.macdLine[previousPeriod] > macdResult.signalLine[previousPeriod]) {
-    // MACD line just crossed below the signal line, generate a sell signal
+    // MACD line just crossed below the signal line, generate a buy signal
       console.log(`Macd just crossed on the signal`)
       macdSignal = true
     }else {
@@ -343,7 +382,8 @@ private async buySignal(macdResult: MacdResult, rsi: number[]): Promise<Signal> 
     }
     const rsiData = await this.valueDirection(rsi, 15)
     rsiSignal = await this.isRSIBuySignal(1, rsiLowerThreshold)
-    const signal: Signal ={
+    const signal: Signal = {
+      type: signalType,
       macd: macdSignal,
       rsi: rsiSignal,
     }
@@ -352,29 +392,36 @@ private async buySignal(macdResult: MacdResult, rsi: number[]): Promise<Signal> 
 private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal> {
   let macdSignal: Boolean
   let rsiSignal: Boolean
+  let signalType = "sell"
   const rsiUpperThreshold = 70
-    const lastMacd = macdResult.macdLine[macdResult.macdLine.length -1]
-    const secondLastMacd = macdResult.macdLine[macdResult.macdLine.length -2]
-    const lastSignal = macdResult.signalLine[macdResult.signalLine.length -1]
-    const secondLastSignal = macdResult.signalLine[macdResult.signalLine.length -2]
-    if (macdResult.signalLine[secondLastSignal] > macdResult.macdLine[secondLastMacd] &&
-      macdResult.signalLine[lastSignal] <= macdResult.signalLine[lastMacd]) {
+
+  const lastMacd = macdResult.macdLine[macdResult.macdLine.length - 1]
+  const secondLastMacd = macdResult.macdLine[macdResult.macdLine.length - 2]
+  const lastSignal = macdResult.signalLine[macdResult.signalLine.length - 1]
+  const secondLastSignal = macdResult.signalLine[macdResult.signalLine.length - 2]
+
+  if (secondLastSignal > secondLastMacd && lastSignal <= lastMacd) {
     // MACD line just crossed above the signal line, generate a sell signal
-      console.log(`Macd just crossed above the signal`)
-      macdSignal = true
-    }else {
-      console.log(`Current period macd: ${lastMacd}` )
-      console.log(`Current period signal: ${lastSignal}`)
-      macdSignal = false
-    }
-    const rsiData = await this.valueDirection(rsi, 15)
-    rsiSignal = await this.isRSISellSignal(1, rsiUpperThreshold )
-    const signal: Signal ={
-      macd: macdSignal,
-      rsi: rsiSignal,
-    }
-    return signal 
+    console.log("Macd just crossed above the signal")
+    macdSignal = true
+  } else {
+    console.log(`Current period macd: ${lastMacd}`)
+    console.log(`Current period signal: ${lastSignal}`)
+    macdSignal = false
+  }
+
+  const rsiData = await this.valueDirection(rsi, 15)
+  rsiSignal = await this.isRSISellSignal(1, rsiUpperThreshold)
+
+  const signal: Signal = {
+    type: signalType,
+    macd: macdSignal,
+    rsi: rsiSignal,
+  };
+
+  return signal
 }
+
 
   private async openWallet (password: string): Promise<TradingWallet> {
       const keystore1 = JSON.parse(fs.readFileSync(this.keystore1FilePath, 'utf8'))
@@ -412,13 +459,17 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
       fs.writeFileSync(`./botConfig.json`, JSON.stringify(botInfo, null, 4), 'utf8')
     }
       
-
-    private async readFromFile(chartInterval: string){
+    /**
+     * 
+     * @param chartInterval - input
+     */
+    private async readFromFile(chartInterval: string): Promise<void> {
       const result: number[] = JSON.parse(fs.readFileSync(`./priceData/${chartInterval}BTCData.json`, 'utf8'))
-      const chopped = result.slice(-360)
-      for( var i = 0; i < chopped.length; i++){
+      const chopped = result.slice(-720)
+      
+      for (let i = 0; i < chopped.length; i++) {
         let resp = chopped[i]
-        if(resp != null) {
+        if (resp != null) {
           this.intervalSwitch(chartInterval, resp)
         }
       }
@@ -429,18 +480,18 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
      * @returns 
      */
    private async findHighAndLowValues(data: number[]): Promise<HighAndLow>{
-      let high: number = Number.MIN_SAFE_INTEGER;
-      let low: number = Number.MAX_SAFE_INTEGER;
+      let high: number = Number.MIN_SAFE_INTEGER
+      let low: number = Number.MAX_SAFE_INTEGER
       for (let i = 0; i < data.length; i++) {
-        const value: number = data[i];
+        const value: number = data[i]
         if (value > high) {
-          high = value;
+          high = value
         }
         if (value < low) {
-          low = value;
+          low = value
         }
       }
-      return { high, low };
+      return { high, low }
     }
 
     /**
@@ -485,7 +536,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
         destinationAsset,
         desstinationAddress: address,  
       }
-      const txHash = `await doSingleSwap(tradingWallet.thorchainAmm, tradingWallet.wallet, swapDetail)`
+      const txHash = await doSingleSwap(tradingWallet.thorchainAmm, tradingWallet.wallet, swapDetail)
       console.log(txHash)
       let txRecord: TxDetail =  {
         date: new Date(),
@@ -497,6 +548,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
         rsi: this.rsi[this.rsi.length -1]
       }
       this.sellOrders.push(txRecord)
+      this.txRecords.push(txRecord)
       await this.writeTXToFile(txRecord)
     }
   
@@ -512,7 +564,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
         destinationAsset,
         desstinationAddress: address,  
       }
-      const txHash = `await doSingleSwap(tradingWallet.thorchainAmm, tradingWallet.wallet, swapDetail)`
+      const txHash = await doSingleSwap(tradingWallet.thorchainAmm, tradingWallet.wallet, swapDetail)
       console.log(txHash)
       let txRecord: TxDetail =  {
         date: new Date(),
@@ -524,6 +576,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
         rsi: this.rsi[this.rsi.length -1]
       }
       this.buyOrders.push(txRecord)
+      this.txRecords.push(txRecord)
       await this.writeTXToFile(txRecord)
     }
 

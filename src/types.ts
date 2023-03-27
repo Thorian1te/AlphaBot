@@ -20,7 +20,7 @@ export type TxDetail = {
     assetPrice: number
     asset: Asset
     amount: string
-    result?: TxSubmitted | string
+    result: TxSubmitted | string
     rsi: number
   }
 
@@ -73,6 +73,7 @@ export type HighAndLow = {
 }
 
 export type Signal = {
+    type: string
     macd: Boolean
     rsi: Boolean
 }
