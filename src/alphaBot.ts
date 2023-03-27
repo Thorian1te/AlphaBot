@@ -103,10 +103,12 @@ export class AlphaBot {
   }
   private async marketType(): Promise<string> {
     let market: string
-    const macd = await this.getMacd(this.halfHourChart)
-    await this.getRsi(this.halfHourChart)
-    const rsiHighLow = await this.findHighAndLowValues(this.rsi)
-    console.log(`Rsi: ${this.rsi[this.rsi.length -1]}, High ${rsiHighLow.high} and lows: ${rsiHighLow.low}`)
+    const macd = await this.getMacd(this.fiveMinuteChart)
+    await this.getRsi(this.fiveMinuteChart)
+    const rsiHighLow = await this.findHighAndLowValues(this.rsi.slice(-12))
+    console.log(`Collecting trading signals for ${ChartInterval.FiveMinute}`)
+    console.log(`Rsi: ${this.rsi[this.rsi.length -1]}`)
+    console.log(`Rsi last hour, High ${rsiHighLow.high} and lows: ${rsiHighLow.low}`)
     let sellSignal: Signal
     let buySignal: Signal
 
@@ -292,20 +294,20 @@ public async getRsi(closings: number[]) {
   const result = rsi(closings)
   const filteredResult = result.filter((value) => value !== 100 && value !== 0)
 
-  if(this.rsi.length < 1) {
-    for( var i = 0; i < filteredResult.length; i++) {
+  if (this.rsi.length < 1) {
+    for (var i = 0; i < filteredResult.length; i++) {
       this.rsi.push(filteredResult[i])
     }
     await this.writeToFile(this.rsi, 'rsi')
   } else {
-    let lastEntry: number [] = []
-    lastEntry.push(filteredResult[filteredResult.length -1])
-    if(lastEntry[0] != filteredResult[filteredResult.length -1]){
-      this.rsi.push(filteredResult[filteredResult.length -1])
+    const lastEntry = filteredResult[filteredResult.length - 1]
+    const lastRsiEntry = this.rsi[this.rsi.length - 1]
+
+    if (lastEntry !== lastRsiEntry) {
+      this.rsi.push(lastEntry);
       await this.writeToFile(this.rsi, 'rsi')
     }
   }
-
 }
 public async getMacd(closings: number[]): Promise<MacdResult> {
     const result = macd(closings)
