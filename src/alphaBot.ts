@@ -3,11 +3,12 @@ import * as fs from 'fs'
 import { ThorchainAMM, Wallet } from "@xchainjs/xchain-thorchain-amm"
 import { CryptoAmount, Midgard, ThorchainCache, ThorchainQuery, Thornode } from "@xchainjs/xchain-thorchain-query"
 import { decryptFromKeystore } from '@xchainjs/xchain-crypto'
-import { doSingleSwap } from './doSwap'
-import { BotInfo, BotMode, ChartInterval, HighAndLow, Signal, SwapDetail, Time, TradingWallet, TxDetail } from './types'
 import { Network } from "@xchainjs/xchain-client"
-import { assetAmount, assetFromStringEx, delay, assetToBase, Asset} from '@xchainjs/xchain-util'
-import { AssetRuneNative } from '@xchainjs/xchain-thorchain'
+import { Client, getBalance, THORChain, ThorchainClient } from '@xchainjs/xchain-thorchain'
+import { assetAmount, assetFromStringEx, delay, assetToBase, Asset, baseToAsset, baseAmount} from '@xchainjs/xchain-util'
+import { doSingleSwap } from './doSwap'
+import { BotInfo, BotMode, ChartInterval, HighAndLow, Signal, SwapDetail, SynthBalance, Time, TradingWallet, TxDetail } from './types'
+
 import { ema, macd, MacdResult, rsi } from 'indicatorts'
 
 require('dotenv').config();
@@ -30,6 +31,7 @@ export class AlphaBot {
 
   public oneMinuteChart: number[] = []
   public fiveMinuteChart: number[] = []
+  public fifteenMinuteChart: number[] = []
   public halfHourChart: number[] = []
   public OneHourChart: number[] = []
   public rsi: number[] = []
@@ -40,7 +42,12 @@ export class AlphaBot {
   private wallet: Wallet | undefined
   private pauseTimeSeconds: number
   private asset: Asset
-  private botConfig: BotInfo
+  private botConfig: BotInfo = {
+    botMode: BotMode.runIdle,
+    walletStatus: 'initialized',
+    dataCollection: true,
+    startTime: new Date(),
+  }
 
 
   constructor(
@@ -72,8 +79,10 @@ export class AlphaBot {
       console.log('Setting up wallet')
       await this.walletSetup()
       console.log('Running AlphaBot....')
-      let info = await this.getAlphaBotInfo()
-      while (info.botMode !== BotMode.stop) { // need to figure out a way to start and stop this. 
+      const bal = await this.getSynthBalance()
+      console.log(bal.sbtc.formatedAssetString())
+      console.log(bal.sbusd.formatedAssetString())
+      while (this.botConfig.botMode !== BotMode.stop) { // need to figure out a way to start and stop this. 
         // select a random action
         
         const action = await this.marketType()
@@ -103,15 +112,15 @@ export class AlphaBot {
   }
   private async marketType(): Promise<string> {
     let market: string
-    const macd = await this.getMacd(this.fiveMinuteChart)
-    await this.getRsi(this.fiveMinuteChart)
+    const macd = await this.getMacd(this.fifteenMinuteChart)
+    await this.getRsi(this.fifteenMinuteChart)
     const rsiHighLow = await this.findHighAndLowValues(this.rsi.slice(-12))
     console.log(`Collecting trading signals for ${ChartInterval.FiveMinute}`)
     console.log(`Rsi: ${this.rsi[this.rsi.length -1]}`)
     console.log(`Rsi last hour, High ${rsiHighLow.high} and lows: ${rsiHighLow.low}`)
     let sellSignal: Signal
     let buySignal: Signal
-
+    console.log(this.botConfig.startTime)
     console.log(`Last Price: ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length -1]}`)
     if (this.fiveMinuteChart.length -1 < 72) {
       const percentageComplete = this.fiveMinuteChart.length -1 / 72 * 100
@@ -119,35 +128,17 @@ export class AlphaBot {
       return 'idle'
     } else {
       if (this.rsi[this.rsi.length - 1] > 50) {
-        sellSignal = await this.sellSignal(macd, this.rsi)
+        sellSignal = await this.sellSignal(macd, this.rsi.slice(-12))
         console.log(`Signal to sell: macd: ${sellSignal.macd}, rsi: ${sellSignal.rsi}`)
         market = await this.checkMarketType(sellSignal)
       } else {
-        buySignal = await this.buySignal(macd, this.rsi)
+        buySignal = await this.buySignal(macd, this.rsi.slice(-12))
         console.log(`Signal to buy: macd: ${buySignal.macd}, rsi: ${buySignal.rsi}`)
         market = await this.checkMarketType(buySignal)
       }
-      
+
       return market
     }
-  }
-
-  private async getAlphaBotInfo(): Promise<BotInfo> {
-
-    const stored: BotInfo = JSON.parse(fs.readFileSync(`./botConfig.json`, 'utf8')) as BotInfo
-    if (stored) {
-      console.log(stored)
-      return stored
-    }
-    const startTime = new Date()
-    const botInfo: BotInfo = {
-      botMode: BotMode.runIdle,
-      walletStatus: `initialized`,
-      dataCollection: true,
-      startTime
-    }
-    await this.botConfigWrite(botInfo)
-    return botInfo
   }
 
   public async dataCollectionMinute(start: Boolean, interval: ChartInterval) {
@@ -157,8 +148,14 @@ export class AlphaBot {
     const highlow = await this.findHighAndLowValues(this.oneMinuteChart)
     console.log(`One minute chart highs and lows`, highlow)
 
-    while(start) {
+    while(start) { 
         // One minute
+        let runningTime: Time
+        runningTime = await this.timeCorrection(this.botConfig.startTime)
+        if(runningTime.timeInMinutes > 1440) {
+          await this.readFromFile(interval)
+          runningTime.timeInMinutes = 0
+        }
         await this.getAssetPrice(interval)
         await this.writeToFile(this.oneMinuteChart,  interval)
         await delay(oneMinuteInMs)
@@ -178,6 +175,22 @@ export class AlphaBot {
         } 
       }
       await this.writeToFile(this.fiveMinuteChart, interval)
+      await delay(oneMinuteInMs * 5)
+    }
+  }
+  public async dataCollectionFifteenMinutes(start: Boolean, interval: ChartInterval) {
+    while (start) {
+      const filtered = this.oneMinuteChart.filter((value, index) => (index + 1) % 5 === 0)
+      if(this.fifteenMinuteChart.length < 1) {
+        this.fifteenMinuteChart.push(...filtered)
+      } else {
+        const lastEntryFive = this.fifteenMinuteChart[this.fifteenMinuteChart.length -1]
+        const lastFilterd = filtered[filtered.length -1]
+        if(lastFilterd !== lastEntryFive) {
+          this.fifteenMinuteChart.push(lastFilterd)
+        } 
+      }
+      await this.writeToFile(this.fifteenMinuteChart, interval)
       await delay(oneMinuteInMs * 5)
     }
   }
@@ -239,6 +252,9 @@ private async intervalSwitch(interval: string, price: number) {
       case `5m`:
           this.fiveMinuteChart.push(price)
           break
+      case `15m`:
+        this.fiveMinuteChart.push(price)
+        break
       case `30m`:
           this.halfHourChart.push(price)
           break
@@ -264,10 +280,6 @@ private async getTimeDifference(startTime: Date ): Promise<Time> {
 private async checkMarketType(signal: Signal): Promise<string> {
   const hasTxRecords = this.txRecords.length > 0
   const lastTxAction = hasTxRecords ? this.txRecords[this.txRecords.length - 1].action : 'idle'
-  const sellOrderConfirmed = hasTxRecords ? this.txRecords[0] : 'Tx Records: 0'
-  console.log(sellOrderConfirmed)
-  console.log(lastTxAction)
-
   if(signal.type === "buy" && signal.rsi && signal.macd && lastTxAction != 'buy'){
     return 'buy'
   } else if (signal.type === "sell", signal.rsi && signal.macd && lastTxAction != 'sell') {
@@ -382,7 +394,7 @@ private async buySignal(macdResult: MacdResult, rsi: number[]): Promise<Signal> 
       console.log(`Current signal period: ${macdResult.signalLine[currentPeriod]}`)
       macdSignal = false
     }
-    const rsiData = await this.valueDirection(rsi, 15)
+    const rsiData = await this.valueDirection(rsi, 14)
     rsiSignal = await this.isRSIBuySignal(1, rsiLowerThreshold)
     const signal: Signal = {
       type: signalType,
@@ -412,7 +424,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
     macdSignal = false
   }
 
-  const rsiData = await this.valueDirection(rsi, 15)
+  const rsiData = await this.valueDirection(rsi, 14)
   rsiSignal = await this.isRSISellSignal(1, rsiUpperThreshold)
 
   const signal: Signal = {
@@ -582,10 +594,22 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
       await this.writeTXToFile(txRecord)
     }
 
-    public async timeCorrection(): Promise<Time>{
-      const botStartTime = this.botConfig.startTime
+    public async timeCorrection(botStartTime: Date): Promise<Time>{
       const difference = await this.getTimeDifference(botStartTime)
-      console.log(botStartTime)
       return difference
+    }
+
+    private async getSynthBalance(): Promise<SynthBalance>{
+      let synthbtc = assetsBTC
+      let synthBUSD = assetsBUSD
+      const address = this.wallet.clients[THORChain].getAddress()
+      const balance = this.wallet.clients[THORChain].getBalance(address)
+      const bitcoin = (await balance).find((asset) => asset.asset.ticker === synthbtc.ticker).amount
+      const busd = (await balance).find((asset) => asset.asset.ticker === synthBUSD.ticker).amount
+      const sbalance: SynthBalance = {
+        sbtc: new CryptoAmount(bitcoin, assetsBTC),
+        sbusd: new CryptoAmount(busd, assetsBUSD)
+      }
+      return sbalance
     }
 }

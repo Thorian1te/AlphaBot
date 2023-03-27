@@ -5,7 +5,7 @@ import { AlphaBot } from "./alphaBot"
 import { ChartInterval } from "./types"
 
 
-const keystore1FilePath = '/Users/dev/Desktop/keystore/alphaBot.txt'
+const keystore1FilePath = './alphaBot.txt'
 const password = process.env.ALPHABOT ?? ''
 const pauseTimeSeconds = 10
 
@@ -18,6 +18,7 @@ async function main() {
   let start = true
   alphaBot.dataCollectionMinute(start, ChartInterval.OneMinute)
   alphaBot.dataCollectionFiveMinutes(start, ChartInterval.FiveMinute)
+  alphaBot.dataCollectionFifteenMinutes(start, ChartInterval.FifteenMinute)
   alphaBot.dataCollectionHalfHour(start, ChartInterval.HalfHour)
   alphaBot.dataCollectionOneHour(start, ChartInterval.OneHour)
 

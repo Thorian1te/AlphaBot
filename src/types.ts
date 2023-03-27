@@ -52,6 +52,7 @@ export type BotInfo = {
 export enum ChartInterval {
     OneMinute = `1m`,
     FiveMinute = `5m`,
+    FifteenMinute = `15m`,
     HalfHour = `30m`,
     OneHour = `1h`
 }
@@ -76,4 +77,9 @@ export type Signal = {
     type: string
     macd: Boolean
     rsi: Boolean
+}
+
+export type SynthBalance = {
+    sbusd: CryptoAmount,
+    sbtc: CryptoAmount
 }
