@@ -22,7 +22,7 @@ async function main() {
   alphaBot.dataCollectionHalfHour(start, ChartInterval.HalfHour)
   alphaBot.dataCollectionOneHour(start, ChartInterval.OneHour)
 
-  await alphaBot.start() 
+  await alphaBot.start(ChartInterval.FifteenMinute) 
 }
 
 
