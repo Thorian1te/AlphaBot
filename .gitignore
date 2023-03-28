@@ -4,3 +4,4 @@ node_modules
 
 src/client.ts
 alphabot.txt
+priceData/

@@ -450,7 +450,7 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
     }
     private async writeSignalToFile(signal: string[]) { 
       const currentTime = new Date()
-      fs.writeFileSync(`./${currentTime}Signal.json`, JSON.stringify(signal, null, 4), 'utf8')
+      fs.writeFileSync(`./signal/${currentTime.getDate()}Signal.json`, JSON.stringify(signal, null, 4), 'utf8')
     }
 
       
