@@ -359,12 +359,12 @@ private async buySignal(macdResult: MacdResult, rsi: number[]): Promise<Signal> 
     let rsiSignal: Boolean
     let signalType = "buy"
     const rsiLowerThreshold = 22
+    const macdLowerThreshold = -250
     const currentPeriod = macdResult.macdLine.length - 1
     const previousPeriod = currentPeriod - 1
     if (macdResult.macdLine[currentPeriod] < macdResult.signalLine[currentPeriod] && macdResult.macdLine[previousPeriod] > macdResult.signalLine[previousPeriod]) {
     // MACD line just crossed below the signal line, generate a buy signal
-      console.log(`Macd just crossed on the signal`)
-     
+      console.log(`Macd just crossed below the signal`)
       macdSignal = true
     }else {
       console.log(`Current macd period: ${macdResult.macdLine[currentPeriod]}` )
@@ -372,10 +372,11 @@ private async buySignal(macdResult: MacdResult, rsi: number[]): Promise<Signal> 
       macdSignal = false
     }
     const rsiData = await this.valueDirection(rsi, 14)
+    const priceDirection = await this.valueDirection(this.fifteenMinuteChart, 14)
     console.log(`Price direction ${rsiData}`)
     rsiSignal = await this.isRSIBuySignal(1, rsiLowerThreshold)
-    if(macdSignal || rsiSignal) { 
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}`)
+    if(currentPeriod > macdLowerThreshold || rsiSignal) { 
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
     }
     const signal: Signal = {
       type: signalType,
@@ -388,7 +389,8 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
   let macdSignal: Boolean
   let rsiSignal: Boolean
   let signalType = "sell"
-  const rsiUpperThreshold = 72
+  const rsiUpperThreshold = 80
+  const macdUpperThreshold = 250
 
   const lastMacd = macdResult.macdLine[macdResult.macdLine.length - 1]
   const secondLastMacd = macdResult.macdLine[macdResult.macdLine.length - 2]
@@ -409,8 +411,10 @@ private async sellSignal(macdResult: MacdResult, rsi: number[]): Promise<Signal>
   const rsiData = await this.valueDirection(rsi, 14)
   console.log(`Price direction ${rsiData}`)
   rsiSignal = await this.isRSISellSignal(1, rsiUpperThreshold)
-  if(macdSignal || rsiSignal) {
-    this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${signalType}`)
+  const priceDirection = await this.valueDirection(this.fifteenMinuteChart, 14)
+
+  if(lastMacd > macdUpperThreshold || rsiSignal) {
+    this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
   }
   const signal: Signal = {
     type: signalType,
