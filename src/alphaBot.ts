@@ -124,19 +124,19 @@ export class AlphaBot {
     let sellSignal: Signal
     let buySignal: Signal
 
-    console.log(`Last Price: ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length -1]}`)
-    if (this.fiveMinuteChart.length -1 < 72) {
+    console.log(`Last Price: ${this.asset.chain} $`, this.oneMinuteChart[this.oneMinuteChart.length -1])
+    if (this.fiveMinuteChart.length -1 < 72 ) {
       const percentageComplete = this.fiveMinuteChart.length -1 / 72 * 100
-      console.log(`Alphabot is waiting for data maturity % ${percentageComplete.toFixed()} `)
+      console.log(`Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete `)
       return 'idle'
     } else {
       if (this.rsi[this.rsi.length - 1] > 50) {
         sellSignal = await this.sellSignal(macd, this.rsi.slice(-12))
-        console.log(`Signal to sell: macd: ${sellSignal.macd}, rsi: ${sellSignal.rsi}`)
+        console.log(`Sell > macd: ${sellSignal.macd}, rsi: ${sellSignal.rsi}`)
         market = await this.checkMarketType(sellSignal)
       } else {
         buySignal = await this.buySignal(macd, this.rsi.slice(-12))
-        console.log(`Signal to buy: macd: ${buySignal.macd}, rsi: ${buySignal.rsi}`)
+        console.log(`Buy > macd: ${buySignal.macd}, rsi: ${buySignal.rsi}`)
         market = await this.checkMarketType(buySignal)
       }
 
