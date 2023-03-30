@@ -30,6 +30,12 @@ export enum BotMode {
     runIdle = 'runIdle',
     stop = 'stop'
 }
+export enum TradingMode {
+    buy = 'buy',
+    sell = 'sell',
+    hold = 'hold'
+}
+
 
 export type ExponentialMovingAverage = {
     lastRefreshed: Date
@@ -43,6 +49,7 @@ export type BotInfo = {
     walletStatus: string
     dataCollection: Boolean
     startTime: Date
+    tradingMode: TradingMode
 }
 
 export enum ChartInterval {
