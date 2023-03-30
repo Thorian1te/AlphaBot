@@ -131,7 +131,7 @@ export class AlphaBot {
     let buySignal: Signal
 
     console.log(`Last Price: ${this.asset.chain} $`, this.oneMinuteChart[this.oneMinuteChart.length -1])
-    if(this.signalTracker.length > 1) {
+    if(this.signalTracker.length > 10) {
       await this.writeSignalToFile(this.signalTracker)
     }
     if (this.fiveMinuteChart.length -1 < 72 ) {
@@ -320,24 +320,29 @@ public async getMacd(closings: number[]): Promise<MacdResult> {
  * @param rsiLowerThreshold 
  * @returns 
  */
-private async isRSIBuySignal(period: number, rsiLowerThreshold: number): Promise<Boolean> {
-  // Get the current RSI value
-  const currentRSI = this.rsi[this.rsi.length - 1]
+private async isRSIBuySignal(period: number, rsiLowerThreshold: number): Promise<boolean> {
+  const currentRSI = this.rsi[this.rsi.length - 1];
 
-  if (currentRSI < rsiLowerThreshold) {
-    // Check if the RSI value falls below the lower threshold
-    // Wait for the RSI value to cross back above the lower threshold
-    for (let i = period; i < this.rsi.length; i++) {
-      const currentRSIInLoop = this.rsi[i]
-      const previousRSIInLoop = this.rsi[i - 1]
+  if (currentRSI >= rsiLowerThreshold) {
+    return false;
+  }
 
-      if (previousRSIInLoop < rsiLowerThreshold && currentRSIInLoop >= rsiLowerThreshold) {
-        console.log("Rsi dipped below threshold and is rebounding")
-        this.signalTracker.push(`Rsi dipped below threshold and is rebounding`)
-        return true // Buy signal confirmed
-      }
+  const startIndex = Math.max(this.rsi.length - period, 1);
+  if (startIndex === 1 && this.rsi[0] >= rsiLowerThreshold) {
+    return false;
+  }
+
+  for (let i = startIndex; i < this.rsi.length; i++) {
+    const currentRSIInLoop = this.rsi[i];
+    const previousRSIInLoop = this.rsi[i - 1];
+
+    if (previousRSIInLoop < rsiLowerThreshold && currentRSIInLoop >= rsiLowerThreshold) {
+      console.log("RSI dipped below threshold and is rebounding");
+      this.signalTracker.push("RSI dipped below threshold and is rebounding");
+      return true; // Buy signal confirmed
     }
   }
+
   return false; // No buy signal detected
 }
 /**
@@ -346,27 +351,31 @@ private async isRSIBuySignal(period: number, rsiLowerThreshold: number): Promise
  * @param rsiUpperThreshold 
  * @returns 
  */
-private async isRSISellSignal(period: number, rsiUpperThreshold: number): Promise<Boolean> {
-  // Get the current RSI value
+private async isRSISellSignal(period: number, rsiUpperThreshold: number): Promise<boolean> {
   const currentRSI = this.rsi[this.rsi.length - 1];
 
-  if (currentRSI > rsiUpperThreshold) {
-    // Check if the RSI value rises above the upper threshold
-    // Wait for the RSI value to cross back below the upper threshold
-    for (let i = period; i < this.rsi.length; i++) {
-      const currentRSIInLoop = this.rsi[i];
-      const previousRSIInLoop = this.rsi[i - 1];
+  if (currentRSI <= rsiUpperThreshold) {
+    return false;
+  }
 
-      if (previousRSIInLoop > rsiUpperThreshold && currentRSIInLoop <= rsiUpperThreshold) {
-        console.log("Rsi is above sell threshold and is returning");
-        this.signalTracker.push(`Rsi is above sell threshold and is returning`)
-        return true; // Sell signal confirmed
-      }
+  const startIndex = Math.max(this.rsi.length - period, 1);
+  if (startIndex === 1 && this.rsi[0] <= rsiUpperThreshold) {
+    return false;
+  }
+
+  for (let i = startIndex; i < this.rsi.length; i++) {
+    const currentRSIInLoop = this.rsi[i];
+    const previousRSIInLoop = this.rsi[i - 1];
+
+    if (previousRSIInLoop > rsiUpperThreshold && currentRSIInLoop <= rsiUpperThreshold) {
+      console.log("RSI is above sell threshold and is returning");
+      this.signalTracker.push("RSI is above sell threshold and is returning");
+      return true; // Sell signal confirmed
     }
   }
+
   return false; // No sell signal detected
 }
-
 private async buySignal(macdResult: MacdResult): Promise<Signal> {
     let macdSignal: Boolean
     let rsiSignal: Boolean
@@ -391,7 +400,7 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
     if(macdSignal && rsiSignal) { 
       this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
     }
-    if(this.rsi[this.rsi.length -1] > 20) {
+    if(this.rsi[this.rsi.length -1] < 20) {
       const buysignal: Signal = {
         type: signalType,
         macd: true,
