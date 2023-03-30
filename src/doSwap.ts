@@ -62,10 +62,10 @@ export const doSingleSwap = async (tcAmm: ThorchainAMM, wallet: Wallet, swapDeta
     const outPutCanSwap = await tcAmm.estimateSwap(swapParams)
     printTx(outPutCanSwap, swapParams.input)
     if (outPutCanSwap.txEstimate.canSwap) {
-      const output = `await tcAmm.doSwap(wallet, swapParams)`
+      const output = await tcAmm.doSwap(wallet, swapParams)
       
-      //console.log(`Tx hash: ${output.hash},\n Tx url: ${output.url}\n WaitTime: ${output.waitTimeSeconds}`)
-      return output
+      console.log(`Tx hash: ${output.hash},\n Tx url: ${output.url}\n WaitTime: ${output.waitTimeSeconds}`)
+      return output.hash
     }
 
   } catch (error) {
