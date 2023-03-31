@@ -98,6 +98,7 @@ export class AlphaBot {
           action = await this.injestTradingData(interval)
           console.log(action)
           if(action === TradingMode.buy || action === TradingMode.sell) {
+            await this.writeSignalToFile(this.signalTracker)
             await this.writeToFile(this.oneMinuteChart.slice(-10), action)         
           }
         }
@@ -136,9 +137,6 @@ export class AlphaBot {
     let buySignal: Signal
 
     console.log(`Last Price: ${this.asset.chain} $`, this.oneMinuteChart[this.oneMinuteChart.length -1])
-    if(this.signalTracker.length > 10) {
-      await this.writeSignalToFile(this.signalTracker)
-    }
     if (this.fiveMinuteChart.length -1 < 72 ) {
       const percentageComplete = this.fiveMinuteChart.length -1 / 72 * 100
       console.log(`Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete `)
@@ -172,6 +170,9 @@ export class AlphaBot {
         await this.getAssetPrice(interval)
         await this.writeToFile(this.oneMinuteChart,  interval)
         await delay(oneMinuteInMs)
+        if(this.oneMinuteChart.length > 1080) {
+          await this.readFromFile(ChartInterval.OneMinute)
+        }
 
     }
   }
@@ -303,7 +304,6 @@ public async getRsi(closings: number[]) {
 
   const result = rsi(closings)
   const filteredResult = result.filter((value) => value !== 100 && value !== 0)
-
   for (let i = 0; i < filteredResult.length; i++) {
     const rsiEntry = +filteredResult[i].toFixed(4)
     if (this.rsi.indexOf(rsiEntry) === -1) {
@@ -311,6 +311,7 @@ public async getRsi(closings: number[]) {
     }
   }
   await this.writeToFile(this.rsi, 'rsi')
+  await this.writeToFile(filteredResult, 'rsiRaw')
 }
 public async getMacd(closings: number[]): Promise<MacdResult> {
     const result = macd(closings)
@@ -368,12 +369,14 @@ private async isRSISellSignal(period: number, rsiUpperThreshold: number): Promis
   for (let i = startIndex; i < this.rsi.length; i++) {
     const currentRSIInLoop = this.rsi[i];
     const previousRSIInLoop = this.rsi[i - 1];
-
     if (previousRSIInLoop > rsiUpperThreshold && currentRSIInLoop <= rsiUpperThreshold) {
-      console.log("RSI is above sell threshold and is returning");
-      this.signalTracker.push("RSI is above sell threshold and is returning");
-      return true; // Sell signal confirmed
+      console.log("Rsi is above sell threshold and is returning");
+      this.signalTracker.push(`${previousRSIInLoop}`)
+      this.signalTracker.push(`${rsiUpperThreshold}`)
+      this.signalTracker.push(`${currentRSIInLoop}`)
+      return true // Sell signal confirmed
     }
+    
   }
 
   return false; // No sell signal detected
@@ -403,6 +406,7 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
       this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
     }
     if(this.rsi[this.rsi.length -1] < 20) {
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
       const buysignal: Signal = {
         type: signalType,
         macd: true,
@@ -421,7 +425,7 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
   let macdSignal: Boolean
   let rsiSignal: Boolean
   let signalType = TradingMode.sell
-  const rsiUpperThreshold = 75
+  const rsiUpperThreshold = 76
   const lastMacd = macdResult.macdLine[macdResult.macdLine.length - 1]
   const secondLastMacd = macdResult.macdLine[macdResult.macdLine.length - 2]
   const lastSignal = macdResult.signalLine[macdResult.signalLine.length - 1]
@@ -444,10 +448,11 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
   console.log(`Price direction ${rsiData}`)
 
 
-  if(macdSignal ) {
+  if(macdSignal && rsiSignal) {
     this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
   }
-  if(this.rsi[this.rsi.length -1] > 80) {
+  if(this.rsi[this.rsi.length -1] > 85) {
+    this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
     const sellSignal: Signal = {
       type: signalType,
       macd: true,
@@ -661,7 +666,6 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
       this.intervalId = setInterval(async () => {
         const currentTime = new Date()
         if (currentTime >= this.botConfig.startTime) {
-          console.log('running display')
           await this.displayData()
         }
       }, this.interval)
@@ -674,5 +678,7 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
       console.log(`TxRecords: `, this.txRecords.length )
       console.log(`Time alive: `, (await this.getTimeDifference(this.botConfig.startTime)).timeInMinutes)
       console.log(`Minute Chart length: `, this.oneMinuteChart.length)
+      console.log(`Buy orders: `, this.buyOrders.length)
+      console.log(`Sell orders: `, this.sellOrders.length)
     }
 }
