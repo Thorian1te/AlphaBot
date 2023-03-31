@@ -50,6 +50,8 @@ export class AlphaBot {
     startTime: new Date(),
     tradingMode: TradingMode.hold,
   }
+  private interval: number
+  private intervalId: NodeJS.Timeout | undefined
 
 
   constructor(
@@ -64,7 +66,7 @@ export class AlphaBot {
       this.thorchainCache = new ThorchainCache(new Midgard(network), new Thornode(network))
       this.thorchainQuery = new ThorchainQuery(this.thorchainCache)
       this.thorchainAmm = new ThorchainAMM(this.thorchainQuery)
-
+      this.interval = 10 * 60 * 1000; // 10 minutes in milliseconds
   }
 
 
@@ -77,29 +79,32 @@ export class AlphaBot {
 
 
 
-  async start(interval:string) {
+
+  async start(interval:ChartInterval) {
       console.log(`Start time: ${this.botConfig.startTime}`)
-      setInterval(this.readFromFile, 1440 * 60 * 1000 )
       console.log('Setting up wallet')
       await this.walletSetup()
       console.log('Running AlphaBot....')
       const bal = await this.getSynthBalance()
       console.log(bal.sbtc.formatedAssetString())
       console.log(bal.sbusd.formatedAssetString())
+      this.schedule()
       while (this.botConfig.botMode !== BotMode.stop) { 
         let action: TradingMode
         const tradingHalted = await this.isTradingHalted()
         if(tradingHalted) {
           action = this.botConfig.tradingMode
         } else {
-          action = await this.marketType(interval)
+          action = await this.injestTradingData(interval)
           console.log(action)
           if(action === TradingMode.buy || action === TradingMode.sell) {
-            await this.writeToFile(this.oneMinuteChart.slice(-10), action)
-            
+            await this.writeToFile(this.oneMinuteChart.slice(-10), action)         
           }
         }
         await this.executeAction(action)  
+      }
+      if(this.oneMinuteChart.length > 1080) {
+        await this.readFromFile(ChartInterval.OneMinute)
       }
     }
 
@@ -119,7 +124,7 @@ export class AlphaBot {
         break
     }
   }
-  private async marketType(interval: string): Promise<TradingMode> {
+  private async injestTradingData(interval: string): Promise<TradingMode> {
     let market: TradingMode
     const macd = await this.getMacd(this.fifteenMinuteChart)
     await this.getRsi(this.fifteenMinuteChart)
@@ -158,7 +163,7 @@ export class AlphaBot {
   public async dataCollectionMinute(start: Boolean, interval: ChartInterval) {
     this.asset = assetsBTC
     console.log(`Collecting ${this.asset.ticker} pool price`)
-    await this.readFromFile()
+    await this.readFromFile(interval)
     const highlow = await this.findHighAndLowValues(this.oneMinuteChart)
     console.log(`One minute chart highs and lows`, highlow)
 
@@ -292,23 +297,20 @@ public async getEma(values: number[], period: number): Promise<number[]> {
  * @param closings 
  */
 public async getRsi(closings: number[]) {
+  if (closings.length < 14) {
+    throw new Error('Cannot calculate RSI with less than 14 closing prices.')
+  }
+
   const result = rsi(closings)
   const filteredResult = result.filter((value) => value !== 100 && value !== 0)
 
-  if (this.rsi.length < 1) {
-    for (var i = 0; i < filteredResult.length; i++) {
-      this.rsi.push(+filteredResult[i].toFixed(4))
-    }
-    await this.writeToFile(this.rsi, 'rsi')
-  } else {
-    const lastEntry = filteredResult[filteredResult.length - 1]
-    const lastRsiEntry = this.rsi[this.rsi.length - 1]
-
-    if (lastEntry !== lastRsiEntry) {
-      this.rsi.push(+lastEntry.toFixed(4))
-      await this.writeToFile(this.rsi, 'rsi')
+  for (let i = 0; i < filteredResult.length; i++) {
+    const rsiEntry = +filteredResult[i].toFixed(4)
+    if (this.rsi.indexOf(rsiEntry) === -1) {
+      this.rsi.push(rsiEntry)
     }
   }
+  await this.writeToFile(this.rsi, 'rsi')
 }
 public async getMacd(closings: number[]): Promise<MacdResult> {
     const result = macd(closings)
@@ -499,9 +501,8 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
      * 
      * @param chartInterval - input
      */
-    private async readFromFile(){
-      const chartInterval = ChartInterval.OneMinute
-      const result: number[] = JSON.parse(fs.readFileSync(`./priceData/${chartInterval}BTCData.json`, 'utf8'))
+    private async readFromFile(interval: ChartInterval){
+      const result: number[] = JSON.parse(fs.readFileSync(`./priceData/${interval}BTCData.json`, 'utf8'))
       const chopped = result.slice(-720)
       
       for (let i = 0; i < chopped.length; i++) {
@@ -653,5 +654,25 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
       } else {
         return true
       }
+    }
+
+    private schedule(): void {
+      console.log('Starting scheduled task...')
+      this.intervalId = setInterval(async () => {
+        const currentTime = new Date()
+        if (currentTime >= this.botConfig.startTime) {
+          console.log('running display')
+          await this.displayData()
+        }
+      }, this.interval)
+    }
+
+    private async displayData() {
+      const bal = await this.getSynthBalance()
+      console.log(bal.sbtc.formatedAssetString())
+      console.log(bal.sbusd.formatedAssetString())
+      console.log(`TxRecords: `, this.txRecords.length )
+      console.log(`Time alive: `, (await this.getTimeDifference(this.botConfig.startTime)).timeInMinutes)
+      console.log(`Minute Chart length: `, this.oneMinuteChart.length)
     }
 }
