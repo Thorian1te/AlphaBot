@@ -1,5 +1,5 @@
 import { THORChain } from '@xchainjs/xchain-thorchain'
-import { ThorchainAMM, Wallet } from '@xchainjs/xchain-thorchain-amm'
+import { ThorchainAMM, TxSubmitted, Wallet } from '@xchainjs/xchain-thorchain-amm'
 import {
   CryptoAmount,
   EstimateSwapParams,
@@ -35,7 +35,7 @@ function printTx(txDetails: TxDetails, input: CryptoAmount) {
 /**
  * From asset to asset with no Affiliate address on testnet
  */
-export const doSingleSwap = async (tcAmm: ThorchainAMM, wallet: Wallet, swapDetail: SwapDetail): Promise<string> =>{ 
+export const doSingleSwap = async (tcAmm: ThorchainAMM, wallet: Wallet, swapDetail: SwapDetail): Promise<TxSubmitted> =>{ 
   try {
     const fromAsset = swapDetail.fromAsset
     const toAsset = swapDetail.destinationAsset
@@ -52,20 +52,13 @@ export const doSingleSwap = async (tcAmm: ThorchainAMM, wallet: Wallet, swapDeta
       destinationAddress,
       slipLimit: new BigNumber('0.05'), //optional
     }
-    // const affiliateAddress = process.argv[8]
-    // if (affiliateAddress) {
-    //   const affiliateFeeBasisPoints = Number(process.argv[9])
-    //   swapParams.affiliateAddress = affiliateAddress
-    //   swapParams.affiliateFeeBasisPoints = affiliateFeeBasisPoints
-    // }
-    
     const outPutCanSwap = await tcAmm.estimateSwap(swapParams)
     printTx(outPutCanSwap, swapParams.input)
     if (outPutCanSwap.txEstimate.canSwap) {
       const output = await tcAmm.doSwap(wallet, swapParams)
       
       console.log(`Tx hash: ${output.hash},\n Tx url: ${output.url}\n WaitTime: ${output.waitTimeSeconds}`)
-      return output.hash
+      return output
     }
 
   } catch (error) {
