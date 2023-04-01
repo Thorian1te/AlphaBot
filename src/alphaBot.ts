@@ -387,7 +387,7 @@ private async isRSISellSignal(period: number, rsiUpperThreshold: number): Promis
 private async buySignal(macdResult: MacdResult): Promise<Signal> {
     let macdSignal: Boolean
     let rsiSignal: Boolean
-    let signalType = TradingMode.buy
+    let signalType = TradingMode
     const rsiLowerThreshold = 22
     const currentPeriod = macdResult.macdLine.length - 1
     const previousPeriod = currentPeriod - 1
@@ -408,7 +408,7 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
     if(macdSignal && rsiSignal) { 
       this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
       const signal: Signal = {
-        type: signalType,
+        type: signalType.buy,
         macd: macdSignal,
         rsi: rsiSignal,
       }
@@ -416,7 +416,7 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
     } 
      if ( macdSignal || rsiSignal) {
       const signal: Signal = {
-        type: TradingMode.hold,
+        type: signalType.hold,
         macd: macdSignal,
         rsi: rsiSignal,
       }
@@ -424,7 +424,7 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
     } 
     if ( !macdSignal || !rsiSignal) {
       const signal: Signal = {
-        type: TradingMode.hold,
+        type: signalType.hold,
         macd: macdSignal,
         rsi: rsiSignal,
       }
@@ -433,7 +433,7 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
     if(this.rsi[this.rsi.length -1] < 20) {
       this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
       const buysignal: Signal = {
-        type: signalType,
+        type: signalType.buy,
         macd: true,
         rsi: true,
       }
@@ -444,7 +444,7 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
 private async sellSignal(macdResult: MacdResult): Promise<Signal> {
   let macdSignal: Boolean
   let rsiSignal: Boolean
-  let signalType = TradingMode.sell
+  let signalType = TradingMode
   const rsiUpperThreshold = 76
   const lastMacd = macdResult.macdLine[macdResult.macdLine.length - 1]
   const secondLastMacd = macdResult.macdLine[macdResult.macdLine.length - 2]
@@ -471,7 +471,7 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
   if(macdSignal && rsiSignal) {
     this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
     const signal: Signal = {
-      type: signalType,
+      type: signalType.sell,
       macd: macdSignal,
       rsi: rsiSignal,
     }
@@ -479,7 +479,7 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
   } 
   if ( macdSignal || rsiSignal) {
     const signal: Signal = {
-      type: TradingMode.hold,
+      type: signalType.hold,
       macd: macdSignal,
       rsi: rsiSignal,
     }
@@ -487,7 +487,7 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
   }
   if ( !macdSignal || !rsiSignal) {
     const signal: Signal = {
-      type: TradingMode.hold,
+      type: signalType.hold,
       macd: macdSignal,
       rsi: rsiSignal,
     }
@@ -496,7 +496,7 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
   if(this.rsi[this.rsi.length -1] > 85) {
     this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
     const sellSignal: Signal = {
-      type: signalType,
+      type: signalType.sell,
       macd: true,
       rsi: true,
     }
