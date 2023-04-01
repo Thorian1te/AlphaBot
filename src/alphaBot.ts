@@ -413,7 +413,16 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
         rsi: rsiSignal,
       }
       return signal
-    } else if ( macdSignal || rsiSignal) {
+    } 
+     if ( macdSignal || rsiSignal) {
+      const signal: Signal = {
+        type: TradingMode.hold,
+        macd: macdSignal,
+        rsi: rsiSignal,
+      }
+      return signal
+    } 
+    if ( !macdSignal || !rsiSignal) {
       const signal: Signal = {
         type: TradingMode.hold,
         macd: macdSignal,
@@ -467,7 +476,16 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
       rsi: rsiSignal,
     }
     return signal
-  } else if ( macdSignal || rsiSignal) {
+  } 
+  if ( macdSignal || rsiSignal) {
+    const signal: Signal = {
+      type: TradingMode.hold,
+      macd: macdSignal,
+      rsi: rsiSignal,
+    }
+    return signal
+  }
+  if ( !macdSignal || !rsiSignal) {
     const signal: Signal = {
       type: TradingMode.hold,
       macd: macdSignal,
