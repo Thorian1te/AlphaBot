@@ -269,12 +269,15 @@ private async getTimeDifference(startTime: Date ): Promise<Time> {
 }
 
 private async checkMarketType(signal: Signal): Promise<TradingMode> {
-  const hasTxRecords = this.txRecords.length > 0
-  
   const bal = await this.getSynthBalance() // need to work on this
+  const hasTxRecords = this.txRecords.length > 0
+  const amount = new CryptoAmount(assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)), assetsBTC)
+  const sbusd = await this.thorchainQuery.convert(amount, assetsBUSD)
+  
+
   if(signal.type === TradingMode.buy && bal.sbusd.assetAmount.amount().toNumber() >= 400){
     return TradingMode.buy
-  } else if (signal.type === TradingMode.sell && bal.sbtc.assetAmount.amount().toNumber() >= 0.01451937) {
+  } else if (signal.type === TradingMode.sell && sbusd.assetAmount.amount().toNumber() > 400) {  // only sell btc for more than what we bought it for 
     return TradingMode.sell
   } else {
     console.log(`Has tx records:`, hasTxRecords)
@@ -324,29 +327,29 @@ public async getMacd(closings: number[]): Promise<MacdResult> {
  * @returns 
  */
 private async isRSIBuySignal(period: number, rsiLowerThreshold: number): Promise<boolean> {
-  const currentRSI = this.rsi[this.rsi.length - 1];
+  const currentRSI = this.rsi[this.rsi.length - 1]
 
   if (currentRSI >= rsiLowerThreshold) {
     return false;
   }
 
-  const startIndex = Math.max(this.rsi.length - period, 1);
+  const startIndex = Math.max(this.rsi.length - period, 1)
   if (startIndex === 1 && this.rsi[0] >= rsiLowerThreshold) {
     return false;
   }
 
   for (let i = startIndex; i < this.rsi.length; i++) {
-    const currentRSIInLoop = this.rsi[i];
-    const previousRSIInLoop = this.rsi[i - 1];
+    const currentRSIInLoop = this.rsi[i]
+    const previousRSIInLoop = this.rsi[i - 1]
 
     if (previousRSIInLoop < rsiLowerThreshold && currentRSIInLoop >= rsiLowerThreshold) {
-      console.log("RSI dipped below threshold and is rebounding");
-      this.signalTracker.push("RSI dipped below threshold and is rebounding");
+      console.log("RSI dipped below threshold and is rebounding")
+      this.signalTracker.push("RSI dipped below threshold and is rebounding")
       return true; // Buy signal confirmed
     }
   }
 
-  return false; // No buy signal detected
+  return false // No buy signal detected
 }
 /**
  * 
@@ -404,7 +407,20 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
     rsiSignal = await this.isRSIBuySignal(1, rsiLowerThreshold)
     if(macdSignal && rsiSignal) { 
       this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
-    }
+      const signal: Signal = {
+        type: signalType,
+        macd: macdSignal,
+        rsi: rsiSignal,
+      }
+      return signal
+    } else if ( macdSignal || rsiSignal) {
+      const signal: Signal = {
+        type: TradingMode.hold,
+        macd: macdSignal,
+        rsi: rsiSignal,
+      }
+      return signal
+    } 
     if(this.rsi[this.rsi.length -1] < 20) {
       this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
       const buysignal: Signal = {
@@ -414,12 +430,7 @@ private async buySignal(macdResult: MacdResult): Promise<Signal> {
       }
       return buysignal
     }
-    const signal: Signal = {
-      type: signalType,
-      macd: macdSignal,
-      rsi: rsiSignal,
-    }
-    return signal
+
 }
 private async sellSignal(macdResult: MacdResult): Promise<Signal> {
   let macdSignal: Boolean
@@ -450,7 +461,20 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
 
   if(macdSignal && rsiSignal) {
     this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
-  }
+    const signal: Signal = {
+      type: signalType,
+      macd: macdSignal,
+      rsi: rsiSignal,
+    }
+    return signal
+  } else if ( macdSignal || rsiSignal) {
+    const signal: Signal = {
+      type: TradingMode.hold,
+      macd: macdSignal,
+      rsi: rsiSignal,
+    }
+    return signal
+  } 
   if(this.rsi[this.rsi.length -1] > 85) {
     this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${signalType}, ${priceDirection}`)
     const sellSignal: Signal = {
@@ -460,13 +484,6 @@ private async sellSignal(macdResult: MacdResult): Promise<Signal> {
     }
     return sellSignal
   }
-  const signal: Signal = {
-    type: signalType,
-    macd: macdSignal,
-    rsi: rsiSignal,
-  }
-
-  return signal
 }
 
 
