@@ -119,6 +119,12 @@ export class AlphaBot {
     const bal = await this.getSynthBalance();
     console.log(bal.sbtc.formatedAssetString());
     console.log(bal.sbusd.formatedAssetString());
+    const amount = new CryptoAmount(
+      assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)),
+      assetsBTC
+    );
+    const sbusd = await this.thorchainQuery.convert(amount, assetsBUSD);
+    console.log(`Btc in Busd: ${sbusd.formatedAssetString()}`)
     this.schedule();
     while (this.botConfig.botMode !== BotMode.stop) {
       let action: TradingMode;
@@ -880,7 +886,14 @@ export class AlphaBot {
     const bal = await this.getSynthBalance();
     console.log(bal.sbtc.formatedAssetString());
     console.log(bal.sbusd.formatedAssetString());
-    console.log(`TxRecords: `, this.txRecords.length);
+    const amount = new CryptoAmount(
+      assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)),
+      assetsBTC
+    );
+    const sbusd = await this.thorchainQuery.convert(amount, assetsBUSD);
+    console.log(`Btc in Busd: ${sbusd.formatedAssetString()}`)
+    console.log(`Buy records: `, this.buyOrders.length);
+    console.log(`Sell records: `, this.sellOrders.length);
     console.log(
       `Time alive: `,
       (await this.getTimeDifference(this.botConfig.startTime)).timeInMinutes >
