@@ -11,10 +11,7 @@ import {
 import { decryptFromKeystore } from "@xchainjs/xchain-crypto";
 import { Network } from "@xchainjs/xchain-client";
 import {
-  Client,
-  getBalance,
   THORChain,
-  ThorchainClient,
 } from "@xchainjs/xchain-thorchain";
 import {
   assetAmount,
@@ -22,8 +19,6 @@ import {
   delay,
   assetToBase,
   Asset,
-  baseToAsset,
-  baseAmount,
 } from "@xchainjs/xchain-util";
 import { doSingleSwap } from "./doSwap";
 import {
@@ -50,6 +45,12 @@ const assetsBUSD = assetFromStringEx(`BNB/BUSD-BD1`);
 const assetsBTC = assetFromStringEx(`BTC/BTC`);
 
 const oneMinuteInMs = 60 * 1000; // 1 minute in milliseconds
+
+const rsiUpperThreshold = 74
+const rsiLowerThreshold = 24
+
+// amount to be traded in 
+const tradingAmount = 400 
 
 export class AlphaBot {
   //private pools: Record<string, LiquidityPool> | undefined
@@ -130,7 +131,7 @@ export class AlphaBot {
       let action: TradingMode;
       const tradingHalted = await this.isTradingHalted();
       if (tradingHalted) {
-        action = this.botConfig.tradingMode;
+        action = TradingMode.paused;
       } else {
         action = await this.injestTradingData(interval);
         console.log(action);
@@ -157,6 +158,13 @@ export class AlphaBot {
         break;
       case TradingMode.hold:
         await delay(this.pauseTimeSeconds * 999);
+        break;
+      case TradingMode.paused:
+        const tradingHalted = await this.isTradingHalted();
+        while(tradingHalted) {
+          console.log(`Trading is ${action}, will retry in 10 seconds`)
+          await delay(this.pauseTimeSeconds * 10000);
+        }
         break;
       default:
         break;
@@ -341,12 +349,12 @@ export class AlphaBot {
 
     if (
       signal.type === TradingMode.buy &&
-      bal.sbusd.assetAmount.amount().toNumber() >= 400
+      bal.sbusd.assetAmount.amount().toNumber() >= tradingAmount
     ) {
       return TradingMode.buy;
     } else if (
       signal.type === TradingMode.sell &&
-      sbusd.assetAmount.amount().toNumber() > 400
+      sbusd.assetAmount.amount().toNumber() > tradingAmount
     ) {
       // only sell btc for more than what we bought it for
       return TradingMode.sell;
@@ -365,7 +373,6 @@ export class AlphaBot {
     let macdSignal: Boolean;
     let rsiSignal: Boolean;
     let signalType = TradingMode;
-    const rsiLowerThreshold = 24;
     const currentPeriod = macdResult.macdLine.length - 1;
     const previousPeriod = currentPeriod - 1;
     if (
@@ -384,10 +391,10 @@ export class AlphaBot {
       );
       macdSignal = false;
     }
-    const rsiData = await this.valueDirection(this.rsi, 14, "rsi");
+    const rsiData = await this.valueDirection(this.rsi, 1, "rsi");
     const priceDirection = await this.valueDirection(
       this.oneMinuteChart,
-      1,
+      10,
       "price"
     );
     console.log(`Rsi direction ${rsiData}`);
@@ -445,7 +452,6 @@ export class AlphaBot {
     let macdSignal: Boolean;
     let rsiSignal: Boolean;
     let signalType = TradingMode;
-    const rsiUpperThreshold = 74;
     const lastMacd = macdResult.macdLine[macdResult.macdLine.length - 1];
     const secondLastMacd = macdResult.macdLine[macdResult.macdLine.length - 2];
     const lastSignal = macdResult.signalLine[macdResult.signalLine.length - 1];
@@ -462,7 +468,7 @@ export class AlphaBot {
       macdSignal = false;
     }
 
-    const rsiData = await this.valueDirection(this.rsi, 4, "rsi");
+    const rsiData = await this.valueDirection(this.rsi, 1, "rsi");
     rsiSignal = await this.isRSISellSignal(1, rsiUpperThreshold);
     const priceDirection = await this.valueDirection(
       this.oneMinuteChart,

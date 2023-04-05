@@ -33,7 +33,8 @@ export enum BotMode {
 export enum TradingMode {
     buy = 'buy',
     sell = 'sell',
-    hold = 'hold'
+    hold = 'hold',
+    paused = 'paused',
 }
 
 
