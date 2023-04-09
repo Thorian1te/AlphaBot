@@ -402,9 +402,9 @@ export class AlphaBot {
     rsiSignal = await this.isRSIBuySignal(1, rsiLowerThreshold);
     if (macdSignal && rsiSignal) {
       this.signalTracker.push(
-        `${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(
+        `RSI: ${this.rsi.slice(-1)},  ${macdResult.macdLine[currentPeriod]} ${this.oneMinuteChart.slice(
           -1
-        )}, ${signalType}, ${priceDirection}`
+        )}, ${signalType.buy}, ${priceDirection}`
       );
       const signal: Signal = {
         type: signalType.buy,
@@ -415,9 +415,9 @@ export class AlphaBot {
     }
     if (macdSignal || rsiSignal) {
       this.signalTracker.push(
-        `${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(
+        `RSI:${this.rsi.slice(-1)},  ${macdResult.macdLine[currentPeriod]}, ${this.oneMinuteChart.slice(
           -1
-        )}, ${signalType}, ${priceDirection}, macd ${macdSignal}, rsi ${rsiSignal}`
+        )}, ${signalType.hold}, ${priceDirection}, macd ${macdSignal}, rsi ${rsiSignal}`
       );
       const signal: Signal = {
         type: signalType.hold,
@@ -438,7 +438,7 @@ export class AlphaBot {
       this.signalTracker.push(
         `${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(
           -1
-        )}, ${signalType}, ${priceDirection}`
+        )}, ${signalType.buy}, ${priceDirection}`
       );
       const buysignal: Signal = {
         type: signalType.buy,
@@ -482,7 +482,7 @@ export class AlphaBot {
       this.signalTracker.push(
         `${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(
           -1
-        )}, ${signalType}, ${priceDirection}, macd ${macdSignal}, rsi ${rsiSignal}`
+        )}, ${signalType.sell}, ${priceDirection}, macd ${macdSignal}, rsi ${rsiSignal}`
       );
       const signal: Signal = {
         type: signalType.sell,
@@ -495,7 +495,7 @@ export class AlphaBot {
       this.signalTracker.push(
         `${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(
           -1
-        )}, ${signalType}, ${priceDirection}`
+        )}, ${signalType.hold}, ${priceDirection}`
       );
       const signal: Signal = {
         type: TradingMode.hold,
@@ -516,7 +516,7 @@ export class AlphaBot {
       this.signalTracker.push(
         `${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(
           -1
-        )}, ${signalType}, ${priceDirection}`
+        )}, ${signalType.sell}, ${priceDirection}`
       );
       const sellSignal: Signal = {
         type: signalType.sell,
@@ -559,7 +559,6 @@ export class AlphaBot {
       }
     }
     await this.writeToFile(this.rsi, "rsi");
-    await this.writeToFile(filteredResult, "rsiRaw");
   }
   public async getMacd(closings: number[]): Promise<MacdResult> {
     const result = macd(closings);
