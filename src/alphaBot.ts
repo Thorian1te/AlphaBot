@@ -391,7 +391,7 @@ export class AlphaBot {
       );
       macdSignal = false;
     }
-    const rsiData = await this.valueDirection(this.rsi, 1, "rsi");
+    const rsiData = await this.valueDirection(this.rsi, 12, "rsi");
     const priceDirection = await this.valueDirection(
       this.oneMinuteChart,
       10,
@@ -399,7 +399,7 @@ export class AlphaBot {
     );
     console.log(`Rsi direction ${rsiData}`);
     console.log(`Price direction ${rsiData}`);
-    rsiSignal = await this.isRSIBuySignal(1, rsiLowerThreshold);
+    rsiSignal = await this.isRSIBuySignal(24, rsiLowerThreshold);
     if (macdSignal && rsiSignal) {
       this.signalTracker.push(
         `RSI: ${this.rsi.slice(-1)},  ${macdResult.macdLine[currentPeriod]} ${this.oneMinuteChart.slice(
@@ -467,9 +467,9 @@ export class AlphaBot {
       console.log(`Current period signal: ${lastSignal}`);
       macdSignal = false;
     }
-
-    const rsiData = await this.valueDirection(this.rsi, 1, "rsi");
-    rsiSignal = await this.isRSISellSignal(1, rsiUpperThreshold);
+    // period being passed in is 3 hours
+    const rsiData = await this.valueDirection(this.rsi, 12, "rsi");
+    rsiSignal = await this.isRSISellSignal(24, rsiUpperThreshold);
     const priceDirection = await this.valueDirection(
       this.oneMinuteChart,
       10,
@@ -888,15 +888,18 @@ export class AlphaBot {
   }
 
   private async displayData() {
-    const bal = await this.getSynthBalance();
-    console.log(bal.sbtc.formatedAssetString());
-    console.log(bal.sbusd.formatedAssetString());
-    const amount = new CryptoAmount(
-      assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)),
-      assetsBTC
-    );
-    const sbusd = await this.thorchainQuery.convert(amount, assetsBUSD);
-    console.log(`Btc in Busd: ${sbusd.formatedAssetString()}`)
+    try {
+      const bal = await this.getSynthBalance();
+      console.log(bal.sbtc.formatedAssetString());
+      console.log(bal.sbusd.formatedAssetString());
+      const amount = new CryptoAmount(
+        assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)),
+        assetsBTC
+      );
+      const sbusd = await this.thorchainQuery.convert(amount, assetsBUSD);
+      console.log(`Btc in Busd: ${sbusd.formatedAssetString()}`)
+    }catch (err) {console.log(`Can't fetch balances`)}
+
     console.log(`Buy records: `, this.buyOrders.length);
     console.log(`Sell records: `, this.sellOrders.length);
     console.log(
@@ -909,6 +912,6 @@ export class AlphaBot {
     console.log(`Minute Chart length: `, this.oneMinuteChart.length);
     console.log(`Buy orders: `, this.buyOrders.length);
     console.log(`Sell orders: `, this.sellOrders.length);
-    console.log(`Signals : `, this.signalTracker.length);
+    console.log(`Signals : `, this.signalTracker.slice(-10));
   }
 }
