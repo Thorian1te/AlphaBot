@@ -174,6 +174,9 @@ export class AlphaBot {
     let market: TradingMode;
     const macd = await this.getMacd(this.fifteenMinuteChart);
     await this.getRsi(this.fifteenMinuteChart);
+    if( (await this.getTimeDifference(this.botConfig.startTime)).timeInSeconds < 10) {
+      await this.checkHistoricSignals(macd)
+    }
     const rsiHighLow = await this.findHighAndLowValues(this.rsi.slice(-12));
     console.log(`Collecting trading signals for ${interval}`);
     console.log(`Rsi: ${this.rsi[this.rsi.length - 1]}`);
@@ -369,6 +372,21 @@ export class AlphaBot {
     }
   }
 
+
+  // --------------------------------- Trading sigals ------------------------------------- 
+  private async checkHistoricSignals(macdResult: MacdResult) {
+    const rsi = this.rsi
+    // start index is 3 hrs 
+    for ( let i = 12; i < rsi.length; i++ ) {
+      if (i < 45 ) {
+        await this.buySignal(macdResult)
+      } else if (i > 65 ) {
+        await this.sellSignal(macdResult)
+      }
+    }
+    console.log(this.signalTracker)
+  }
+
   private async buySignal(macdResult: MacdResult): Promise<Signal> {
     let tradeSignal: Signal = {
       type: TradingMode.hold,
@@ -406,19 +424,19 @@ export class AlphaBot {
 
     if (tradeSignal.macd && tradeSignal.rsi) {
        tradeSignal.type = TradingMode.buy
-      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)},  ${macdResult.macdLine[currentPeriod]} ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)},  ${ macdResult.macdLine[currentPeriod].toFixed(2)} ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
      
     }
     if (tradeSignal.macd || tradeSignal.rsi) {
       tradeSignal.type = TradingMode.hold
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${ macdResult.macdLine[currentPeriod].toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
     }
     if (!tradeSignal.macd || !tradeSignal.rsi) {
       tradeSignal.type = TradingMode.hold
     }
     if (this.rsi[this.rsi.length - 1] < 20) {
        tradeSignal.type = TradingMode.buy
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${ macdResult.macdLine[currentPeriod].toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
      
     }
     return tradeSignal
@@ -466,19 +484,19 @@ export class AlphaBot {
 
     if (tradeSignal.macd && tradeSignal.rsi) {
       tradeSignal.type = TradingMode.sell
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, macd ${tradeSignal.macd}, rsi ${tradeSignal.rsi}`);
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}`);
 
     }
     if (tradeSignal.macd || tradeSignal.rsi) {
       tradeSignal.type = TradingMode.hold
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type} `);
     }
     if (!tradeSignal.macd || !tradeSignal.rsi) {
       tradeSignal.type = TradingMode.hold
     }
     if (this.rsi[this.rsi.length - 1] > 86) {
       tradeSignal.type = TradingMode.sell
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}`);
     }
     return tradeSignal
   }
@@ -586,9 +604,6 @@ export class AlphaBot {
         currentRSIInLoop <= rsiUpperThreshold
       ) {
         console.log("Rsi is above sell threshold and is returning");
-        this.signalTracker.push(`${previousRSIInLoop}`);
-        this.signalTracker.push(`${rsiUpperThreshold}`);
-        this.signalTracker.push(`${currentRSIInLoop}`);
         return true; // Sell signal confirmed
       }
     }
@@ -714,6 +729,7 @@ export class AlphaBot {
     };
     return tradingWallet;
   }
+
 
   /**
    *
