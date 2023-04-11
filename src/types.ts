@@ -84,7 +84,7 @@ export type HighAndLow = {
 }
 
 export type Signal = {
-    type: string
+    type: TradingMode
     macd: Boolean
     rsi: Boolean
 }
