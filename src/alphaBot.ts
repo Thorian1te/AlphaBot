@@ -370,26 +370,29 @@ export class AlphaBot {
   }
 
   private async buySignal(macdResult: MacdResult): Promise<Signal> {
-    let macdSignal: Boolean;
-    let rsiSignal: Boolean;
-    let signalType = TradingMode;
+    let tradeSignal: Signal = {
+      type: TradingMode.hold,
+      macd: false,
+      rsi: false
+    };
     const currentPeriod = macdResult.macdLine.length - 1;
     const previousPeriod = currentPeriod - 1;
+    const prePreviousPeriod = currentPeriod - 2;
+    
     if (
-      macdResult.macdLine[currentPeriod] <
-        macdResult.signalLine[currentPeriod] &&
-      macdResult.macdLine[previousPeriod] >
-        macdResult.signalLine[previousPeriod]
+      macdResult.macdLine[currentPeriod] < macdResult.signalLine[currentPeriod] &&
+      macdResult.macdLine[previousPeriod] > macdResult.signalLine[previousPeriod] &&
+      macdResult.macdLine[prePreviousPeriod] > macdResult.signalLine[prePreviousPeriod]
     ) {
-      // MACD line just crossed below the signal line, generate a buy signal
-      console.log(`Macd just crossed below the signal`);
-      macdSignal = true;
+      // MACD lines were previously above the signal line and just crossed below,
+      // and previous MACD lines were also above the signal line,
+      // generate a sell signal
+      console.log("MACD crossed below the signal");
+      tradeSignal.macd = true;
     } else {
-      console.log(`Current macd period: ${macdResult.macdLine[currentPeriod]}`);
-      console.log(
-        `Current signal period: ${macdResult.signalLine[currentPeriod]}`
-      );
-      macdSignal = false;
+      console.log(`Current MACD period: ${macdResult.macdLine[currentPeriod]}`);
+      console.log(`Current signal period: ${macdResult.signalLine[currentPeriod]}`);
+      tradeSignal.macd = false;
     }
     const rsiData = await this.valueDirection(this.rsi, 12, "rsi");
     const priceDirection = await this.valueDirection(
@@ -399,77 +402,59 @@ export class AlphaBot {
     );
     console.log(`Rsi direction ${rsiData}`);
     console.log(`Price direction ${rsiData}`);
-    rsiSignal = await this.isRSIBuySignal(24, rsiLowerThreshold);
-    if (macdSignal && rsiSignal) {
-      this.signalTracker.push(
-        `RSI: ${this.rsi.slice(-1)},  ${macdResult.macdLine[currentPeriod]} ${this.oneMinuteChart.slice(
-          -1
-        )}, ${signalType.buy}, ${priceDirection}`
-      );
-      const signal: Signal = {
-        type: signalType.buy,
-        macd: macdSignal,
-        rsi: rsiSignal,
-      };
-      return signal;
+    tradeSignal.rsi = await this.isRSIBuySignal(24, rsiLowerThreshold);
+
+    if (tradeSignal.macd && tradeSignal.rsi) {
+       tradeSignal.type = TradingMode.buy
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)},  ${macdResult.macdLine[currentPeriod]} ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+     
     }
-    if (macdSignal || rsiSignal) {
-      this.signalTracker.push(
-        `RSI:${this.rsi.slice(-1)},  ${macdResult.macdLine[currentPeriod]}, ${this.oneMinuteChart.slice(
-          -1
-        )}, ${signalType.hold}, ${priceDirection}, macd ${macdSignal}, rsi ${rsiSignal}`
-      );
-      const signal: Signal = {
-        type: signalType.hold,
-        macd: macdSignal,
-        rsi: rsiSignal,
-      };
-      return signal;
+    if (tradeSignal.macd || tradeSignal.rsi) {
+      tradeSignal.type = TradingMode.hold
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
     }
-    if (!macdSignal || !rsiSignal) {
-      const signal: Signal = {
-        type: signalType.hold,
-        macd: macdSignal,
-        rsi: rsiSignal,
-      };
-      return signal;
+    if (!tradeSignal.macd || !tradeSignal.rsi) {
+      tradeSignal.type = TradingMode.hold
     }
     if (this.rsi[this.rsi.length - 1] < 20) {
-      this.signalTracker.push(
-        `${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(
-          -1
-        )}, ${signalType.buy}, ${priceDirection}`
-      );
-      const buysignal: Signal = {
-        type: signalType.buy,
-        macd: true,
-        rsi: true,
-      };
-      return buysignal;
+       tradeSignal.type = TradingMode.buy
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${currentPeriod}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+     
     }
+    return tradeSignal
   }
   private async sellSignal(macdResult: MacdResult): Promise<Signal> {
-    let macdSignal: Boolean;
-    let rsiSignal: Boolean;
-    let signalType = TradingMode;
+    let tradeSignal: Signal = {
+      type: TradingMode.hold,
+      macd: false,
+      rsi: false
+    };
     const lastMacd = macdResult.macdLine[macdResult.macdLine.length - 1];
     const secondLastMacd = macdResult.macdLine[macdResult.macdLine.length - 2];
     const lastSignal = macdResult.signalLine[macdResult.signalLine.length - 1];
-    const secondLastSignal =
-      macdResult.signalLine[macdResult.signalLine.length - 2];
-
-    if (secondLastSignal > secondLastMacd && lastSignal <= lastMacd) {
-      // MACD line just crossed above the signal line, generate a sell signal
-      console.log("Macd just crossed above the signal");
-      macdSignal = true;
+    const secondLastSignal = macdResult.signalLine[macdResult.signalLine.length - 2];
+    
+    const previousMacd = macdResult.macdLine[macdResult.macdLine.length - 3];
+    const previousSignal = macdResult.signalLine[macdResult.signalLine.length - 3];
+    
+    if (
+      lastMacd < lastSignal &&
+      secondLastMacd > secondLastSignal &&
+      previousMacd > previousSignal
+    ) {
+      // MACD lines were previously above the signal line and just crossed below,
+      // and previous MACD lines were also above the signal line,
+      // generate a sell signal
+      console.log("MACD crossed below the signal");
+      tradeSignal.macd = true;
     } else {
-      console.log(`Current period macd: ${lastMacd}`);
+      console.log(`Current period MACD: ${lastMacd}`);
       console.log(`Current period signal: ${lastSignal}`);
-      macdSignal = false;
+      tradeSignal.macd = false;
     }
     // period being passed in is 3 hours
     const rsiData = await this.valueDirection(this.rsi, 12, "rsi");
-    rsiSignal = await this.isRSISellSignal(24, rsiUpperThreshold);
+    tradeSignal.rsi = await this.isRSISellSignal(24, rsiUpperThreshold);
     const priceDirection = await this.valueDirection(
       this.oneMinuteChart,
       10,
@@ -477,54 +462,25 @@ export class AlphaBot {
     );
     console.log(`Rsi direction ${rsiData}`);
     console.log(`Price direction ${rsiData}`);
+ 
 
-    if (macdSignal && rsiSignal) {
-      this.signalTracker.push(
-        `${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(
-          -1
-        )}, ${signalType.sell}, ${priceDirection}, macd ${macdSignal}, rsi ${rsiSignal}`
-      );
-      const signal: Signal = {
-        type: signalType.sell,
-        macd: macdSignal,
-        rsi: rsiSignal,
-      };
-      return signal;
+    if (tradeSignal.macd && tradeSignal.rsi) {
+      tradeSignal.type = TradingMode.sell
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, macd ${tradeSignal.macd}, rsi ${tradeSignal.rsi}`);
+
     }
-    if (macdSignal || rsiSignal) {
-      this.signalTracker.push(
-        `${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(
-          -1
-        )}, ${signalType.hold}, ${priceDirection}`
-      );
-      const signal: Signal = {
-        type: TradingMode.hold,
-        macd: macdSignal,
-        rsi: rsiSignal,
-      };
-      return signal;
+    if (tradeSignal.macd || tradeSignal.rsi) {
+      tradeSignal.type = TradingMode.hold
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
     }
-    if (!macdSignal || !rsiSignal) {
-      const signal: Signal = {
-        type: signalType.hold,
-        macd: macdSignal,
-        rsi: rsiSignal,
-      };
-      return signal;
+    if (!tradeSignal.macd || !tradeSignal.rsi) {
+      tradeSignal.type = TradingMode.hold
     }
-    if (this.rsi[this.rsi.length - 1] > 80) {
-      this.signalTracker.push(
-        `${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(
-          -1
-        )}, ${signalType.sell}, ${priceDirection}`
-      );
-      const sellSignal: Signal = {
-        type: signalType.sell,
-        macd: true,
-        rsi: true,
-      };
-      return sellSignal;
+    if (this.rsi[this.rsi.length - 1] > 86) {
+      tradeSignal.type = TradingMode.sell
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${lastMacd}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
     }
+    return tradeSignal
   }
 
   // ------------------------------------- Trading Indicators ----------------------------------------
