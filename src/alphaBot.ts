@@ -36,7 +36,7 @@ import {
   TxDetail,
 } from "./types";
 
-import { BollingerBands, ema, macd, MacdResult, rsi } from "indicatorts";
+import {ema, macd, MacdResult, rsi } from "indicatorts";
 
 require("dotenv").config();
 
@@ -136,7 +136,6 @@ export class AlphaBot {
         action = await this.injestTradingData(interval);
         console.log(action);
         if (action === TradingMode.buy || action === TradingMode.sell) {
-          await this.writeSignalToFile(this.signalTracker);
           await this.writeToFile(this.oneMinuteChart.slice(-10), action);
         }
       }
@@ -427,13 +426,16 @@ export class AlphaBot {
       this.signalTracker.push(`RSI: ${this.rsi.slice(-1)},  ${ macdResult.macdLine[currentPeriod].toFixed(2)} ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
      
     }
-    if (tradeSignal.macd || tradeSignal.rsi) {
-      tradeSignal.type = TradingMode.hold
+    // trade based of macd below rsi threshold
+    if (tradeSignal.macd  && this.rsi[this.rsi.length -1] > 35) {
+      tradeSignal.type = TradingMode.buy
       this.signalTracker.push(`${this.rsi.slice(-1)}, ${ macdResult.macdLine[currentPeriod].toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
     }
+    // Don't trade in this range
     if (!tradeSignal.macd || !tradeSignal.rsi) {
       tradeSignal.type = TradingMode.hold
     }
+    // Try and catch the wick
     if (this.rsi[this.rsi.length - 1] < 20) {
        tradeSignal.type = TradingMode.buy
       this.signalTracker.push(`${this.rsi.slice(-1)}, ${ macdResult.macdLine[currentPeriod].toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
@@ -481,20 +483,23 @@ export class AlphaBot {
     console.log(`Rsi direction ${rsiData}`);
     console.log(`Price direction ${rsiData}`);
  
-
+    // Trade based off signals
     if (tradeSignal.macd && tradeSignal.rsi) {
       tradeSignal.type = TradingMode.sell
       this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}`);
 
     }
-    if (tradeSignal.macd || tradeSignal.rsi) {
-      tradeSignal.type = TradingMode.hold
+    // Trade macd above rsi threshold
+    if (tradeSignal.macd && this.rsi[this.rsi.length -1] > 65) {
+      tradeSignal.type = TradingMode.sell
       this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type} `);
     }
+    // Dont trade this range
     if (!tradeSignal.macd || !tradeSignal.rsi) {
       tradeSignal.type = TradingMode.hold
     }
-    if (this.rsi[this.rsi.length - 1] > 86) {
+    // Try and catch the wick 
+    if (this.rsi[this.rsi.length - 1] > 85) {
       tradeSignal.type = TradingMode.sell
       this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}`);
     }
@@ -860,6 +865,7 @@ export class AlphaBot {
   }
 
   private async displayData() {
+    const timeAlive = await this.getTimeDifference(this.botConfig.startTime)
     try {
       const bal = await this.getSynthBalance();
       console.log(bal.sbtc.formatedAssetString());
@@ -876,14 +882,17 @@ export class AlphaBot {
     console.log(`Sell records: `, this.sellOrders.length);
     console.log(
       `Time alive: `,
-      (await this.getTimeDifference(this.botConfig.startTime)).timeInMinutes >
+      timeAlive.timeInMinutes >
         1080
-        ? (await this.getTimeDifference(this.botConfig.startTime)).timeInHours
-        : (await this.getTimeDifference(this.botConfig.startTime)).timeInMinutes
+        ? timeAlive.timeInHours
+        : timeAlive.timeInMinutes
     );
+    if(Number(timeAlive.timeInHours) % 3) {
+      await this.writeSignalToFile(this.signalTracker);
+    }
     console.log(`Minute Chart length: `, this.oneMinuteChart.length);
     console.log(`Buy orders: `, this.buyOrders.length);
     console.log(`Sell orders: `, this.sellOrders.length);
-    console.log(`Signals : `, this.signalTracker.slice(-10));
+    console.log(`Signals : `, this.signalTracker.slice(-100));
   }
 }
