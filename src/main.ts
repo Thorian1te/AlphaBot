@@ -1,8 +1,8 @@
 
 import { Network } from "@xchainjs/xchain-client"
-import { delay } from "@xchainjs/xchain-util"
 import { AlphaBot } from "./alphaBot"
 import { ChartInterval } from "./types"
+require("dotenv").config();
 
 
 const keystore1FilePath = './alphaBot.txt'
