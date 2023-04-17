@@ -430,7 +430,7 @@ export class AlphaBot {
     // trade based of macd below rsi threshold
     if (tradeSignal.macd  && this.rsi[this.rsi.length -1] < 35) {
       tradeSignal.type = TradingMode.hold
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${ macdResult.macdLine[currentPeriod].toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${ macdResult.macdLine[currentPeriod].toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, macd: ${tradeSignal.macd}`);
     }
     // Don't trade in this range
     if (!tradeSignal.macd || !tradeSignal.rsi) {
@@ -493,7 +493,7 @@ export class AlphaBot {
     // Trade macd above rsi threshold
     if (tradeSignal.macd && this.rsi[this.rsi.length -1] > 65) {
       tradeSignal.type = TradingMode.hold
-      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type} `);
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type},  macd: ${tradeSignal.macd}`);
     }
     // Dont trade this range
     if (!tradeSignal.macd || !tradeSignal.rsi) {
