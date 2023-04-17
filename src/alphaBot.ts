@@ -46,8 +46,8 @@ const assetsBTC = assetFromStringEx(`BTC/BTC`);
 
 const oneMinuteInMs = 60 * 1000; // 1 minute in milliseconds
 
-const rsiUpperThreshold = 74
-const rsiLowerThreshold = 24
+const rsiUpperThreshold = 70
+const rsiLowerThreshold = 30
 
 // amount to be traded in 
 const tradingAmount = 400 
@@ -173,7 +173,8 @@ export class AlphaBot {
     let market: TradingMode;
     const macd = await this.getMacd(this.fifteenMinuteChart);
     await this.getRsi(this.fifteenMinuteChart);
-    if( (await this.getTimeDifference(this.botConfig.startTime)).timeInSeconds < 10) {
+    const timeAlive = await this.getTimeDifference(this.botConfig.startTime)
+    if( Number(timeAlive.timeInSeconds) < 10) {
       await this.checkHistoricSignals(macd)
     }
     const rsiHighLow = await this.findHighAndLowValues(this.rsi.slice(-12));
@@ -427,9 +428,9 @@ export class AlphaBot {
      
     }
     // trade based of macd below rsi threshold
-    if (tradeSignal.macd  && this.rsi[this.rsi.length -1] > 35) {
-      tradeSignal.type = TradingMode.buy
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${ macdResult.macdLine[currentPeriod].toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+    if (tradeSignal.macd  && this.rsi[this.rsi.length -1] < 35) {
+      tradeSignal.type = TradingMode.hold
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${ macdResult.macdLine[currentPeriod].toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, macd: ${tradeSignal.macd}`);
     }
     // Don't trade in this range
     if (!tradeSignal.macd || !tradeSignal.rsi) {
@@ -491,8 +492,8 @@ export class AlphaBot {
     }
     // Trade macd above rsi threshold
     if (tradeSignal.macd && this.rsi[this.rsi.length -1] > 65) {
-      tradeSignal.type = TradingMode.sell
-      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type} `);
+      tradeSignal.type = TradingMode.hold
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, Macd: ${lastMacd.toFixed(2)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type},  macd: ${tradeSignal.macd}`);
     }
     // Dont trade this range
     if (!tradeSignal.macd || !tradeSignal.rsi) {
@@ -882,7 +883,7 @@ export class AlphaBot {
     console.log(`Sell records: `, this.sellOrders.length);
     console.log(
       `Time alive: `,
-      timeAlive.timeInMinutes >
+      Number(timeAlive.timeInMinutes) >
         1080
         ? timeAlive.timeInHours
         : timeAlive.timeInMinutes
