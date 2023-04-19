@@ -84,11 +84,6 @@ export type Time = {
     timeInHours: Number,
 }
 
-export type HighAndLow = {
-    high: number,
-    low: number
-}
-
 export type Signal = {
     type: TradingMode
     macd: Boolean
@@ -99,4 +94,20 @@ export type Signal = {
 export type SynthBalance = {
     sbusd: CryptoAmount,
     sbtc: CryptoAmount
+}
+
+export type ParabolicSar = {
+    trends: Trend[],
+    psar: number[]
+}
+
+export declare enum Trend {
+    FALLING = -1,
+    STABLE = 0,
+    RISING = 1
+}
+
+export type HighAndLow = {
+    high: number[],
+    low: number[]
 }
