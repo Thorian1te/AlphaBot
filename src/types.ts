@@ -44,6 +44,12 @@ export type ExponentialMovingAverage = {
     value: Number
 }
 
+export type MacdResult = {
+    macdLine: number[]
+    signalLine: number[]
+    histogram: number[]
+}
+
 
 export type BotInfo = {
     botMode: BotMode
@@ -87,6 +93,7 @@ export type Signal = {
     type: TradingMode
     macd: Boolean
     rsi: Boolean
+    histogram: Boolean
 }
 
 export type SynthBalance = {
