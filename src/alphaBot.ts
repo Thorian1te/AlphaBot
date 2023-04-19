@@ -28,6 +28,7 @@ import {
   ChartInterval,
   HighAndLow,
   MacdResult,
+  ParabolicSar,
   Signal,
   SwapDetail,
   SynthBalance,
@@ -37,7 +38,7 @@ import {
   TxDetail,
 } from "./types";
 
-import {ema, macd , rsi } from "indicatorts";
+import {ema, macd , rsi, sma, parabolicSar} from "indicatorts";
 
 require("dotenv").config();
 
@@ -175,15 +176,11 @@ export class AlphaBot {
     const macd = await this.getMacd(this.fifteenMinuteChart);
     await this.getRsi(this.fifteenMinuteChart);
     const timeAlive = await this.getTimeDifference(this.botConfig.startTime)
-    if( Number(timeAlive.timeInSeconds) < 10) {
-      await this.checkHistoricSignals()
-    }
-    const rsiHighLow = await this.findHighAndLowValues(this.rsi.slice(-12));
+    // if( Number(timeAlive.timeInSeconds) < 10) {
+    //   await this.checkHistoricSignals()
+    // }
     console.log(`Collecting trading signals for ${interval}`);
     console.log(`Rsi: ${this.rsi[this.rsi.length - 1]}`);
-    console.log(
-      `Rsi last 3 hours, High ${rsiHighLow.high} and lows: ${rsiHighLow.low}`
-    );
     let sellSignal: Signal;
     let buySignal: Signal;
 
@@ -198,13 +195,13 @@ export class AlphaBot {
       );
       return TradingMode.hold;
     } else {
-      if (this.rsi[this.rsi.length - 1] > 65) {
+      if (this.rsi[this.rsi.length - 1] > 55) {
         sellSignal = await this.sellSignal(macd);
-        console.log(`Sell > macd: ${sellSignal.macd}, rsi: ${sellSignal.rsi}`);
+        console.log(`Sell > macd: ${sellSignal.macd}, rsi: ${sellSignal.rsi}, histo: ${sellSignal.histogram}`);
         market = await this.checkMarketType(sellSignal);
       } else if (this.rsi[this.rsi.length - 1] < 45) {
         buySignal = await this.buySignal(macd);
-        console.log(`Buy > macd: ${buySignal.macd}, rsi: ${buySignal.rsi}`);
+        console.log(`Buy > macd: ${buySignal.macd}, rsi: ${buySignal.rsi}, histo: ${buySignal.histogram}`);
         market = await this.checkMarketType(buySignal);
       } else {
         market = TradingMode.hold;
@@ -219,7 +216,7 @@ export class AlphaBot {
     console.log(`Collecting ${this.asset.ticker} pool price`);
     await this.readFromFile(interval);
     const highlow = await this.findHighAndLowValues(this.oneMinuteChart);
-    console.log(`One minute chart highs and lows`, highlow);
+    console.log(`One minute chart highs and lows`, highlow.high.slice(-1), highlow.low.slice(-1));
 
     while (start) {
       // One minute
@@ -408,8 +405,13 @@ export class AlphaBot {
       rsi: false,
       histogram: false
     };
-    tradeSignal.macd = this.checkMacdBuySignal(macdResult)
-    tradeSignal.histogram = macdResult.histogram[macdResult.histogram.length -1] < 0 ? true : false
+    tradeSignal.macd = this.checkMacdBuySignal(macdResult);
+    const sma = await this.getSma(this.fifteenMinuteChart, 15);
+    const ema = await this.getEma(this.fifteenMinuteChart, 15);
+    const highLow = await this.findHighAndLowValues(this.oneMinuteChart);
+    const psar = await this.getParabolicSar(highLow.high, highLow.low, this.fifteenMinuteChart);
+  
+    tradeSignal.histogram = macdResult.histogram[macdResult.histogram.length -1] < 0 ? true : false;
     const rsiData = await this.valueDirection(this.rsi, 12, "rsi");
     const priceDirection = await this.valueDirection(
       this.oneMinuteChart,
@@ -418,27 +420,37 @@ export class AlphaBot {
     );
     console.log(`Rsi direction ${rsiData}`);
     console.log(`Price direction ${rsiData}`);
+    const histogramDirection = await this.valueDirection(macdResult.histogram, 12, "histo")
+    console.log(`histogram Direction`, histogramDirection)
+    console.log(`sma`, sma.slice(-1), `ema`, ema.slice(-1), `psar`, psar.psar.slice(-1), `Trend:`, psar.trends.slice(-1));
     console.log(`Histogram: `, macdResult.histogram[macdResult.histogram.length -1])
     tradeSignal.rsi = await this.isRSIBuySignal(24, rsiLowerThreshold);
 
     if (tradeSignal.macd && tradeSignal.rsi) {
        tradeSignal.type = TradingMode.buy
-      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, RSI&MACD`);
      
+    }
+    // trade based off signals gpt reccomended 
+    if (this.oneMinuteChart.slice(-1) > sma.slice(-1) && this.oneMinuteChart.slice(-1) > ema.slice(-1) && tradeSignal.macd && this.oneMinuteChart.slice(-1) > psar.psar.slice(-1)) {
+      // If the current price is above SMA, EMA, MACD is positive, and above SAR, generate a buy signal
+      console.log("Buy signal generated");
+      tradeSignal.type = TradingMode.buy;
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, GPT`);
     }
     // trade based of macd below rsi threshold and price direction
     if (tradeSignal.macd  && this.rsi[this.rsi.length -1] < 45 && tradeSignal.histogram) {
-      tradeSignal.type = TradingMode.buy
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, macd: ${tradeSignal.macd}`);
+      tradeSignal.type = TradingMode.buy;
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, macd: ${tradeSignal.macd} RSI&MACD&HISTO`);
     }
     // Don't trade in this range
     if (!tradeSignal.macd || !tradeSignal.rsi) {
-      tradeSignal.type = TradingMode.hold
+      tradeSignal.type = TradingMode.hold;
     }
     // Try and catch the wick
     if (this.rsi[this.rsi.length - 1] < 20) {
-       tradeSignal.type = TradingMode.buy
-      this.signalTracker.push(`${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}`);
+       tradeSignal.type = TradingMode.buy;
+      this.signalTracker.push(`${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection} WICK`);
      
     }
     return tradeSignal
@@ -463,26 +475,40 @@ export class AlphaBot {
     );
     console.log(`Rsi direction ${rsiData}`);
     console.log(`Price direction ${rsiData}`);
+    const histogramDirection = await this.valueDirection(macdResult.histogram, 12, "histo")
+    console.log(`histogram Direction`, histogramDirection)
+    const sma = await this.getSma(this.fifteenMinuteChart, 15);
+    const ema = await this.getEma(this.fifteenMinuteChart, 15);
+    const highLow = await this.findHighAndLowValues(this.oneMinuteChart);
+    const psar = await this.getParabolicSar(highLow.high, highLow.low, this.fifteenMinuteChart);
+    console.log(`sma`, sma.slice(-1), `ema`, ema.slice(-1), `psar`, psar.psar.slice(-1), `Trend:`, psar.trends.slice(-1));
  
     // Trade based off signals
     if (tradeSignal.macd && tradeSignal.rsi) {
       tradeSignal.type = TradingMode.sell
-      this.signalTracker.push(`RSI&MACD ${tradeSignal.macd, tradeSignal.macd} RSI: ${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}`);
+      this.signalTracker.push(`RSI&MACD ${tradeSignal.macd, tradeSignal.macd} RSI: ${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, RSI&MACD`);
 
+    }
+    // Trade based off signals gpt reccommended 
+    if (this.oneMinuteChart.slice(-1) < sma.slice(-1) && this.oneMinuteChart.slice(-1) < ema.slice(-1) && tradeSignal.macd && this.oneMinuteChart.slice(-1) < psar.psar.slice(-1)) {
+      // If the current price is below SMA, EMA, MACD is negative, and below SAR, generate a sell signal
+      console.log("Sell signal generated");
+      tradeSignal.type = TradingMode.sell;
+      this.signalTracker.push(`RSI&MACD ${tradeSignal.macd, tradeSignal.macd} RSI: ${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, GPT`);
     }
     // Trade macd above rsi threshold
     if (tradeSignal.macd && this.rsi[this.rsi.length -1] > 65 && tradeSignal.histogram ) {
-      tradeSignal.type = TradingMode.hold
-      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)} ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type},  ${priceDirection} macd: ${tradeSignal.macd}`);
+      tradeSignal.type = TradingMode.hold;
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)} ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type},  ${priceDirection} macd: ${tradeSignal.macd} histo&rsi&Macd`);
     }
     // Dont trade this range
     if (!tradeSignal.macd || !tradeSignal.rsi) {
-      tradeSignal.type = TradingMode.hold
+      tradeSignal.type = TradingMode.hold;
     }
     // Try and catch the wick 
     if (this.rsi[this.rsi.length - 1] > 85) {
-      tradeSignal.type = TradingMode.sell
-      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}`);
+      tradeSignal.type = TradingMode.sell;
+      this.signalTracker.push(`RSI: ${this.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type} WICK`);
     }
     return tradeSignal
   }
@@ -498,6 +524,28 @@ export class AlphaBot {
   public async getEma(values: number[], period: number): Promise<number[]> {
     const result = ema(period, values);
     return result;
+  }
+  /**
+   * 
+   * @param values - fifteenminute chart
+   * @param period - 15
+   * @returns 
+   */
+  public async getSma(values: number[], period: number): Promise<number[]>{
+    const result = sma(period, values)
+    return result
+  }
+
+  /**
+   * 
+   * @param highs - highs for chart interval
+   * @param lows - lows for chart interval
+   * @param closing - closings for chart interval
+   * @returns 
+   */
+  public async getParabolicSar(highs: number[], lows: number[], closing: number[]): Promise<ParabolicSar> {
+    const result = parabolicSar(highs, lows, closing)
+    return result
   }
   /**
    *
@@ -686,6 +734,8 @@ export class AlphaBot {
    * @returns
    */
   private async findHighAndLowValues(data: number[]): Promise<HighAndLow> {
+    const highArray: number[] = [];
+    const lowArray: number[] = [];
     let high: number = Number.MIN_SAFE_INTEGER;
     let low: number = Number.MAX_SAFE_INTEGER;
     for (let i = 0; i < data.length; i++) {
@@ -696,9 +746,24 @@ export class AlphaBot {
       if (value < low) {
         low = value;
       }
+  
+      // Check for high and low values every 15 values
+      if ((i + 1) % 15 === 0) {
+        // Push high and low values to the respective arrays
+        highArray.push(high);
+        lowArray.push(low);
+        // Reset high and low values for the next 15 values
+        high = Number.MIN_SAFE_INTEGER;
+        low = Number.MAX_SAFE_INTEGER;
+      }
     }
-    return { high, low };
+    const highAndLowArray: HighAndLow = {
+      high: highArray,
+      low: lowArray
+    }
+    return highAndLowArray;
   }
+  
 
   /**
    *
@@ -805,17 +870,14 @@ export class AlphaBot {
    * @param tradingWallet
    */
   private async sell(tradingWallet: TradingWallet) {
-    const amount = new CryptoAmount(
-      assetToBase(assetAmount(400, 8)),
-      assetBUSD
-    );
-    const sBTC = await this.thorchainQuery.convert(amount, assetsBTC);
+    const bal = await this.getSynthBalance(); // need to work on this
+    const sbtc = new CryptoAmount(assetToBase(assetAmount(bal.sbtc.assetAmount.amount().times(0.98))), bal.sbtc.asset)
 
     const address = "thor1nx3yxgdw94nfw0uzwns2ay5ap85nk9p6hjaqn9";
     const fromAsset = assetsBTC;
     const destinationAsset = assetsBUSD;
     const swapDetail: SwapDetail = {
-      amount: sBTC,
+      amount: sbtc,
       decimals: 8,
       fromAsset,
       destinationAsset,
@@ -843,15 +905,13 @@ export class AlphaBot {
   }
 
   private async buy(tradingWallet: TradingWallet) {
-    const amountBUSD = new CryptoAmount(
-      assetToBase(assetAmount(400, 8)),
-      assetsBUSD
-    );
+    const bal = await this.getSynthBalance();
+    const sbusd = new CryptoAmount(assetToBase(assetAmount(bal.sbusd.assetAmount.amount().times(0.98))), bal.sbusd.asset)
     const address = "thor1nx3yxgdw94nfw0uzwns2ay5ap85nk9p6hjaqn9";
     const fromAsset = assetsBUSD;
     const destinationAsset = assetsBTC;
     const swapDetail: SwapDetail = {
-      amount: amountBUSD,
+      amount: sbusd,
       decimals: 8,
       fromAsset,
       destinationAsset,
@@ -893,19 +953,24 @@ export class AlphaBot {
   private async getSynthBalance(): Promise<SynthBalance> {
     let synthbtc = assetsBTC;
     let synthBUSD = assetsBUSD;
-    const address = this.wallet.clients[THORChain].getAddress();
-    const balance = this.wallet.clients[THORChain].getBalance(address);
-    const bitcoin = (await balance).find(
-      (asset) => asset.asset.ticker === synthbtc.ticker
-    ).amount;
-    const busd = (await balance).find(
-      (asset) => asset.asset.ticker === synthBUSD.ticker
-    ).amount;
-    const sbalance: SynthBalance = {
-      sbtc: new CryptoAmount(bitcoin, assetsBTC),
-      sbusd: new CryptoAmount(busd, assetsBUSD),
-    };
-    return sbalance;
+    try {
+      const address = this.wallet.clients[THORChain].getAddress();
+      const balance = this.wallet.clients[THORChain].getBalance(address);
+      const bitcoin = (await balance).find(
+        (asset) => asset.asset.ticker === synthbtc.ticker
+      ).amount;
+      const busd = (await balance).find(
+        (asset) => asset.asset.ticker === synthBUSD.ticker
+      ).amount;
+      const sbalance: SynthBalance = {
+        sbtc: new CryptoAmount(bitcoin, assetsBTC),
+        sbusd: new CryptoAmount(busd, assetsBUSD),
+      };
+      return sbalance;
+    } catch (error) {
+      console.log(`Error fetching bal: `, error)
+    }
+    
   }
 
   private async isTradingHalted(): Promise<boolean> {
