@@ -189,9 +189,9 @@ export class AlphaBot {
       this.oneMinuteChart[this.oneMinuteChart.length - 1]
     );
     if (this.fiveMinuteChart.length - 1 < 72) {
-      const percentageComplete = this.fiveMinuteChart.length - (1 / 72) * 100;
+      const percentageComplete = ((this.fiveMinuteChart.length - 1) / 72) * 100;
       console.log(
-        `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete `
+        `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete`
       );
       return TradingMode.hold;
     } else {
@@ -361,6 +361,13 @@ export class AlphaBot {
       return TradingMode.sell;
     } else {
       console.log(`Has tx records:`, hasTxRecords);
+      if(signal.type === TradingMode.buy) {
+        console.log(`Signal was a ${signal.type} but don't have any sbusd to buy sbtc`, );
+        console.log(`Signal`,this.signalTracker.slice(-1));
+      } else if( signal.type === TradingMode.sell) {
+        console.log(`Signal was a ${signal.type} but don't have any btc to sell `, );
+        console.log(`Signal`,this.signalTracker.slice(-1));
+      }
       if (hasTxRecords)
         console.log(
           `Last tx record: `,
@@ -408,8 +415,8 @@ export class AlphaBot {
     tradeSignal.macd = this.checkMacdBuySignal(macdResult);
     const sma = await this.getSma(this.fifteenMinuteChart, 15);
     const ema = await this.getEma(this.fifteenMinuteChart, 15);
-    const highLow = await this.findHighAndLowValues(this.oneMinuteChart);
-    const psar = await this.getParabolicSar(highLow.high, highLow.low, this.fifteenMinuteChart);
+    const highLow = await this.findHighAndLowValues(this.oneMinuteChart.slice(-1080));
+    const psar = await this.getParabolicSar(highLow.high, highLow.low, this.fifteenMinuteChart.slice(-72));
   
     tradeSignal.histogram = macdResult.histogram[macdResult.histogram.length -1] < 0 ? true : false;
     const rsiData = await this.valueDirection(this.rsi, 12, "rsi");
@@ -479,8 +486,8 @@ export class AlphaBot {
     console.log(`histogram Direction`, histogramDirection)
     const sma = await this.getSma(this.fifteenMinuteChart, 15);
     const ema = await this.getEma(this.fifteenMinuteChart, 15);
-    const highLow = await this.findHighAndLowValues(this.oneMinuteChart);
-    const psar = await this.getParabolicSar(highLow.high, highLow.low, this.fifteenMinuteChart);
+    const highLow = await this.findHighAndLowValues(this.oneMinuteChart.slice(-1080));
+    const psar = await this.getParabolicSar(highLow.high, highLow.low, this.fifteenMinuteChart.slice(-72));
     console.log(`sma`, sma.slice(-1), `ema`, ema.slice(-1), `psar`, psar.psar.slice(-1), `Trend:`, psar.trends.slice(-1));
  
     // Trade based off signals
