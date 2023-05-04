@@ -92,7 +92,8 @@ export type Signal = {
 
 export type SynthBalance = {
     sbusd: CryptoAmount,
-    sbtc: CryptoAmount
+    sbtc: CryptoAmount,
+    sbtcb: CryptoAmount,
 }
 
 export type ParabolicSar = {

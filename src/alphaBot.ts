@@ -19,6 +19,7 @@ import {
   delay,
   assetToBase,
   Asset,
+  baseAmount,
 } from "@xchainjs/xchain-util";
 import { doSingleSwap } from "./doSwap";
 import {
@@ -40,6 +41,7 @@ require("dotenv").config();
 
 const assetsBUSD = assetFromStringEx(`BNB/BUSD-BD1`);
 const assetsBTC = assetFromStringEx(`BTC/BTC`);
+const assetsBTCB = assetFromStringEx(`BNB/BTCB-1DE`)
 
 const oneMinuteInMs = 60 * 1000; // 1 minute in milliseconds
 
@@ -119,6 +121,7 @@ export class AlphaBot {
     console.log("Running AlphaBot....");
     const bal = await this.getSynthBalance();
     console.log(bal.sbtc.formatedAssetString());
+    console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
     console.log(bal.sbusd.formatedAssetString());
     const amount = new CryptoAmount(
       assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)),
@@ -596,9 +599,14 @@ export class AlphaBot {
    */
   private async sell(tradingWallet: TradingWallet) {
     const bal = await this.getSynthBalance(); // need to work on this
-    const sbtc = new CryptoAmount(assetToBase(assetAmount(tradingAmount)), bal.sbtc.asset)
-
-    const fromAsset = assetsBTC;
+    const amount = new CryptoAmount(
+      assetToBase(assetAmount(400, 8)),
+      assetsBUSD
+    );
+    // only sell 400  of btc
+    const sbtc = await this.thorchainQuery.convert(amount, assetsBTC);
+    // which synthetic btc has it 
+    const fromAsset = bal.sbtc.baseAmount.gte(bal.sbtcb.baseAmount) ? assetsBTC : assetsBTCB
     const destinationAsset = assetsBUSD;
     const swapDetail: SwapDetail = {
       amount: sbtc,
@@ -628,10 +636,12 @@ export class AlphaBot {
   }
 
   private async buy(tradingWallet: TradingWallet) {
+    const pools = await this.thorchainCache.thornode.getPools()
+    const btcSynthPaused = pools.find((pool) => pool.asset === `${assetsBTC.chain}.${assetsBTC.symbol}`)
     const bal = await this.getSynthBalance();
     const sbusd = new CryptoAmount(assetToBase(assetAmount(tradingAmount)), bal.sbusd.asset)
     const fromAsset = assetsBUSD;
-    const destinationAsset = assetsBTC;
+    const destinationAsset = btcSynthPaused ? assetsBTCB : assetsBTC;
     const swapDetail: SwapDetail = {
       amount: sbusd,
       decimals: 8,
@@ -674,18 +684,24 @@ export class AlphaBot {
   private async getSynthBalance(): Promise<SynthBalance> {
     let synthbtc = assetsBTC;
     let synthBUSD = assetsBUSD;
+    let synthBTCB = assetsBTCB;
+    const address = this.wallet.clients[THORChain].getAddress();
+    const balance = await this.wallet.clients[THORChain].getBalance(address);
     try {
-      const address = this.wallet.clients[THORChain].getAddress();
-      const balance = this.wallet.clients[THORChain].getBalance(address);
-      const bitcoin = (await balance).find(
+      const bitcoinBal = balance.find(
         (asset) => asset.asset.ticker === synthbtc.ticker
-      ).amount;
-      const busd = (await balance).find(
+      ) ? balance.find((asset) => asset.asset.ticker === synthbtc.ticker).amount : null;
+      const busdBal = balance.find(
         (asset) => asset.asset.ticker === synthBUSD.ticker
-      ).amount;
+      ) ? balance.find((asset) => asset.asset.ticker === synthBUSD.ticker).amount : null;
+      const btcbBal = balance.find(
+        (asset) => asset.asset.ticker === synthBTCB.ticker
+      ) ? balance.find((asset) => asset.asset.ticker === synthBTCB.ticker).amount : null
+      
       const sbalance: SynthBalance = {
-        sbtc: new CryptoAmount(bitcoin, assetsBTC),
-        sbusd: new CryptoAmount(busd, assetsBUSD),
+        sbusd: new CryptoAmount(busdBal, assetsBUSD),
+        sbtc: new CryptoAmount(bitcoinBal, assetsBTC),
+        sbtcb: btcbBal !== null ?  new CryptoAmount(btcbBal, assetsBTCB) : new CryptoAmount(baseAmount(0), assetsBTCB) ,
       };
       return sbalance;
     } catch (error) {
@@ -737,12 +753,12 @@ export class AlphaBot {
         ? timeAlive.timeInHours
         : timeAlive.timeInMinutes
     );
-    if(Number(timeAlive.timeInHours) % 3) {
+    if(Number(timeAlive.timeInHours) % 3 && this.signalTracker.length > 1) {
       await this.writeSignalToFile(this.signalTracker);
     }
     console.log(`Minute Chart length: `, this.oneMinuteChart.length);
     console.log(`Buy orders: `, this.buyOrders.length);
     console.log(`Sell orders: `, this.sellOrders.length);
-    console.log(`Signals : `, this.signalTracker.slice(-100));
+    console.log(`Signals : `, this.signalTracker.slice(-10));
   }
 }
