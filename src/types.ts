@@ -7,7 +7,6 @@ export type SwapDetail = {
     decimals: number
     fromAsset: Asset
     destinationAsset: Asset
-    desstinationAddress: Address
 }
 
 export type TradingWallet = {

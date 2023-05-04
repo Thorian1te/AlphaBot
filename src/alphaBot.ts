@@ -598,7 +598,6 @@ export class AlphaBot {
     const bal = await this.getSynthBalance(); // need to work on this
     const sbtc = new CryptoAmount(assetToBase(assetAmount(tradingAmount)), bal.sbtc.asset)
 
-    const address = "thor1nx3yxgdw94nfw0uzwns2ay5ap85nk9p6hjaqn9";
     const fromAsset = assetsBTC;
     const destinationAsset = assetsBUSD;
     const swapDetail: SwapDetail = {
@@ -606,7 +605,6 @@ export class AlphaBot {
       decimals: 8,
       fromAsset,
       destinationAsset,
-      desstinationAddress: address,
     };
     const txHash = await doSingleSwap(
       tradingWallet.thorchainAmm,
@@ -632,7 +630,6 @@ export class AlphaBot {
   private async buy(tradingWallet: TradingWallet) {
     const bal = await this.getSynthBalance();
     const sbusd = new CryptoAmount(assetToBase(assetAmount(tradingAmount)), bal.sbusd.asset)
-    const address = "thor1nx3yxgdw94nfw0uzwns2ay5ap85nk9p6hjaqn9";
     const fromAsset = assetsBUSD;
     const destinationAsset = assetsBTC;
     const swapDetail: SwapDetail = {
@@ -640,7 +637,6 @@ export class AlphaBot {
       decimals: 8,
       fromAsset,
       destinationAsset,
-      desstinationAddress: address,
     };
     const txHash = await doSingleSwap(
       tradingWallet.thorchainAmm,

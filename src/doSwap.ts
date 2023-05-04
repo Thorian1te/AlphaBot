@@ -5,9 +5,8 @@ import {
   EstimateSwapParams,
   TxDetails,
 } from '@xchainjs/xchain-thorchain-query'
-import { assetAmount, assetFromStringEx, assetToBase } from '@xchainjs/xchain-util'
 import BigNumber from 'bignumber.js'
-import { BotMode, SwapDetail } from './types'
+import {  SwapDetail } from './types'
 
 function printTx(txDetails: TxDetails, input: CryptoAmount) {
   const expanded = {
