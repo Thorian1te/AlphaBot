@@ -7,7 +7,6 @@ export type SwapDetail = {
     decimals: number
     fromAsset: Asset
     destinationAsset: Asset
-    desstinationAddress: Address
 }
 
 export type TradingWallet = {
@@ -93,7 +92,8 @@ export type Signal = {
 
 export type SynthBalance = {
     sbusd: CryptoAmount,
-    sbtc: CryptoAmount
+    sbtc: CryptoAmount,
+    sbtcb: CryptoAmount,
 }
 
 export type ParabolicSar = {
