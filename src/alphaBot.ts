@@ -451,7 +451,7 @@ export class AlphaBot {
       tradeSignal.type = TradingMode.hold;
     }
     // Try and catch the wick
-    if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] < 15) {
+    if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] < 20 && checkPriceReturn) {
        tradeSignal.type = TradingMode.buy;
       this.signalTracker.push(`${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, Price Return ${checkPriceReturn} WICK`);
      
@@ -511,7 +511,7 @@ export class AlphaBot {
       tradeSignal.type = TradingMode.hold;
     }
     // Try and catch the wick 
-    if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] > 85 && checkPriceReturn) {
+    if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] > 80 && checkPriceReturn) {
       tradeSignal.type = TradingMode.sell;
       this.signalTracker.push(`RSI: ${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, Price Return: ${checkPriceReturn} WICK`);
     }
