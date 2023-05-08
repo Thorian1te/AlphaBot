@@ -136,13 +136,8 @@ export class AlphaBot {
       if (tradingHalted) {
         action = TradingMode.paused;
       } else {
-        action = await this.injestTradingData(interval);
-        console.log(action);
-        if (action === TradingMode.buy || action === TradingMode.sell) {
-          await this.writeToFile(this.oneMinuteChart.slice(-10), action);
-        }
+        await this.injestTradingData(interval);
       }
-      await this.executeAction(action);
     }
     if (this.oneMinuteChart.length > 1080) {
       await this.readFromFile(ChartInterval.OneMinute);
@@ -172,7 +167,7 @@ export class AlphaBot {
         break;
     }
   }
-  private async injestTradingData(interval: string): Promise<TradingMode> {
+  private async injestTradingData(interval: string) {
     let market: TradingMode;
     const macd = await this.tradingIndicators.getMacd(this.fifteenMinuteChart);
     await this.tradingIndicators.getRsi(this.fifteenMinuteChart);
@@ -193,19 +188,20 @@ export class AlphaBot {
       );
       return TradingMode.hold;
     } else {
-      if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] > 55) {
+      if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] > 50) {
         sellSignal = await this.sellSignal(macd);
         console.log(`Sell > macd: ${sellSignal.macd}, rsi: ${sellSignal.rsi}, histo: ${sellSignal.histogram}`);
-        market = await this.checkMarketType(sellSignal);
-      } else if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] < 45) {
+        market = await this.checkWalletBal(sellSignal);
+        await this.executeAction(market);
+      } else if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] < 50) {
         buySignal = await this.buySignal(macd);
         console.log(`Buy > macd: ${buySignal.macd}, rsi: ${buySignal.rsi}, histo: ${buySignal.histogram}`);
-        market = await this.checkMarketType(buySignal);
+        market = await this.checkWalletBal(buySignal);
+        await this.executeAction(market);
       } else {
         market = TradingMode.hold;
+        await this.executeAction(market);
       }
-
-      return market;
     }
   }
   // ----------------------------------- Data collection for intervals -------------------------------
@@ -337,8 +333,8 @@ export class AlphaBot {
     return time;
   }
 
-  private async checkMarketType(signal: Signal): Promise<TradingMode> {
-    const bal = await this.getSynthBalance(); // need to work on this
+  private async checkWalletBal(signal: Signal): Promise<TradingMode> {
+    const bal = await this.getSynthBalance(); 
     const hasTxRecords = this.txRecords.length > 0;
     const amount = new CryptoAmount(
       assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)),
@@ -598,18 +594,20 @@ export class AlphaBot {
    * @param tradingWallet
    */
   private async sell(tradingWallet: TradingWallet) {
-    const bal = await this.getSynthBalance(); // need to work on this
+    const bal = await this.getSynthBalance(); 
     const amount = new CryptoAmount(
       assetToBase(assetAmount(400, 8)),
       assetsBUSD
     );
-    // only sell 400  of btc
-    const sbtc = await this.thorchainQuery.convert(amount, assetsBTC);
-    // which synthetic btc has it 
+
+    // which synthetic btc has the balance
     const fromAsset = bal.sbtc.baseAmount.gte(bal.sbtcb.baseAmount) ? assetsBTC : assetsBTCB
+
+    // only sell $400  of btc
+    const syntheticBTC = await this.thorchainQuery.convert(amount, fromAsset);
     const destinationAsset = assetsBUSD;
     const swapDetail: SwapDetail = {
-      amount: sbtc,
+      amount: syntheticBTC,
       decimals: 8,
       fromAsset,
       destinationAsset,
@@ -638,10 +636,10 @@ export class AlphaBot {
   private async buy(tradingWallet: TradingWallet) {
     const pools = await this.thorchainCache.thornode.getPools()
     const btcSynthPaused = pools.find((pool) => pool.asset === `${assetsBTC.chain}.${assetsBTC.symbol}`)
-    const bal = await this.getSynthBalance();
-    const sbusd = new CryptoAmount(assetToBase(assetAmount(tradingAmount)), bal.sbusd.asset)
+
+    const sbusd = new CryptoAmount(assetToBase(assetAmount(tradingAmount)), assetsBUSD)
     const fromAsset = assetsBUSD;
-    const destinationAsset = btcSynthPaused ? assetsBTCB : assetsBTC;
+    const destinationAsset = btcSynthPaused.synth_mint_paused ? assetsBTCB : assetsBTC;
     const swapDetail: SwapDetail = {
       amount: sbusd,
       decimals: 8,
