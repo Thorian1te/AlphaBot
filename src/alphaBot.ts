@@ -123,12 +123,10 @@ export class AlphaBot {
     console.log(bal.sbtc.formatedAssetString());
     console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
     console.log(bal.sbusd.formatedAssetString());
-    const amount = new CryptoAmount(
-      assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)),
-      assetsBTC
-    );
-    const sbusd = await this.thorchainQuery.convert(amount, assetsBUSD);
-    console.log(`Btc in Busd: ${sbusd.formatedAssetString()}`)
+    const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+    const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
+    console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
+    console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
     this.schedule();
     while (this.botConfig.botMode !== BotMode.stop) {
       let action: TradingMode;
@@ -336,10 +334,10 @@ export class AlphaBot {
   private async checkWalletBal(signal: Signal): Promise<TradingMode> {
     const bal = await this.getSynthBalance(); 
     const hasTxRecords = this.txRecords.length > 0;
-    const amount = new CryptoAmount(
-      assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)),
-      assetsBTC
-    );
+    const amountBTC = bal.sbtc 
+    const amountBTCB =bal.sbtcb
+    // check which btc has the greater amount
+    const amount = amountBTC.assetAmount.gt(amountBTCB.assetAmount) ? amountBTC : amountBTCB
     const sbusd = await this.thorchainQuery.convert(amount, assetsBUSD);
 
     if (
@@ -734,12 +732,10 @@ export class AlphaBot {
       const bal = await this.getSynthBalance();
       console.log(bal.sbtc.formatedAssetString());
       console.log(bal.sbusd.formatedAssetString());
-      const amount = new CryptoAmount(
-        assetToBase(assetAmount(bal.sbtc.assetAmount.amount().toNumber(), 8)),
-        assetsBTC
-      );
-      const sbusd = await this.thorchainQuery.convert(amount, assetsBUSD);
-      console.log(`Btc in Busd: ${sbusd.formatedAssetString()}`)
+      const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+      const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
+      console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
+      console.log(`Btc in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
     }catch (err) {console.log(`Can't fetch balances`)}
 
     console.log(`Buy records: `, this.buyOrders.length);
