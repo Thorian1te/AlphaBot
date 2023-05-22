@@ -334,68 +334,23 @@ export class AlphaBot {
   private async checkWalletBal(signal: Signal): Promise<TradingMode> {
     const bal = await this.getSynthBalance(); 
     const hasTxRecords = this.txRecords.length > 0;
-    const amountBTC = bal.sbtc 
-    const amountBTCB =bal.sbtcb
-    // check which btc has the greater amount
-    const amount = amountBTC.assetAmount.gt(amountBTCB.assetAmount) ? amountBTC : amountBTCB
-    const sbusd = await this.thorchainQuery.convert(amount, assetsBUSD);
-
-    if (
-      signal.type === TradingMode.buy &&
-      bal.sbusd.assetAmount.amount().toNumber() >= tradingAmount
-    ) {
-      return TradingMode.buy;
-    } else if (
-      signal.type === TradingMode.sell &&
-      sbusd.assetAmount.amount().toNumber() > tradingAmount
-    ) {
-      // only sell btc for more than what we bought it for
-      return TradingMode.sell;
+    const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+    if (signal.type === TradingMode.buy) {
+      console.log(bal.sbusd.formatedAssetString());
+      const decision = bal.sbusd.assetAmount.amount().toNumber() > 411 ? TradingMode.buy : TradingMode.hold
+      return decision;
+    } else if (signal.type === TradingMode.sell) {
+      console.log(bal.sbtc.formatedAssetString());
+      const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
+      return decision;
     } else {
-      console.log(`Has tx records:`, hasTxRecords);
-      if(signal.type === TradingMode.buy) {
-        console.log(`Signal was a ${signal.type} but don't have any sbusd to buy sbtc`, );
-        console.log(`Signal`,this.signalTracker.slice(-1));
-      } else if( signal.type === TradingMode.sell) {
-        console.log(`Signal was a ${signal.type} but don't have any btc to sell `, );
-        console.log(`Signal`,this.signalTracker.slice(-1));
+      if (hasTxRecords) {
+      console.log('Last tx record:', this.txRecords[this.txRecords.length - 1]);
       }
-      if (hasTxRecords)
-        console.log(
-          `Last tx record: `,
-          this.txRecords[this.txRecords.length - 1]
-        );
+      console.log(sbusd.assetAmount.amount().toNumber()) 
       return TradingMode.hold;
     }
   }
-
-
-  // --------------------------------- Trading sigals ------------------------------------- 
-  // private async checkHistoricSignals() {
-  //   console.log(`Checking historic signals`)
-  //   const minuteChart = this.oneMinuteChart
-  //   const fifteenMinuteChart = minuteChart.filter(
-  //     (value, index) => (index + 1) % 15 === 0
-  //   );
-  //   // start index is 3 hrs
-  //   for (let i = 720, j = 0; i < minuteChart.length; i++, j++) {
-  //     const result = rsi(minuteChart.slice(0, i + 1))
-  //     const filteredResult = result.filter(
-  //       (value) => value !== 100 && value !== 0
-  //     );
-  //     const subset = fifteenMinuteChart.slice(0, result.length);
-  //     if (filteredResult.length - 1 < 45) {
-  //       const macd = await this.tradingIndicators.getMacd(subset);
-  //       console.log(`Rsi lower than 45`)
-  //       this.tradingIndicators.checkMacdBuySignal(macd)
-  //     } else if (i > 65) { 
-  //       console.log(`Rsi higher than 65`)
-  //       const macd = await this.tradingIndicators.getMacd(subset);
-  //       this.tradingIndicators.checkMacdSellSignal(macd)
-  //     }
-  //   }
-  // }
-  
   
   private async buySignal(macdResult: MacdResult): Promise<Signal> {
     let tradeSignal: Signal = {
@@ -595,40 +550,47 @@ export class AlphaBot {
     const bal = await this.getSynthBalance(); 
     const amount = new CryptoAmount(
       assetToBase(assetAmount(400, 8)),
-      assetsBUSD
+      assetsBTC
     );
 
-    // which synthetic btc has the balance
-    const fromAsset = bal.sbtc.baseAmount.gte(bal.sbtcb.baseAmount) ? assetsBTC : assetsBTCB
+    const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+    // do we have more than 400 dollars of btc
+    if(sbusd.assetAmount.amount().toNumber() > 400) {
+      const fromAsset = bal.sbtc.asset
 
-    // only sell $400  of btc
-    const syntheticBTC = await this.thorchainQuery.convert(amount, fromAsset);
-    const destinationAsset = assetsBUSD;
-    const swapDetail: SwapDetail = {
-      amount: syntheticBTC,
-      decimals: 8,
-      fromAsset,
-      destinationAsset,
-    };
-    const txHash = await doSingleSwap(
-      tradingWallet.thorchainAmm,
-      tradingWallet.wallet,
-      swapDetail
-    );
-    console.log(txHash);
-    let txRecord: TxDetail = {
-      date: new Date(),
-      action: TradingMode.sell,
-      asset: fromAsset,
-      amount: swapDetail.amount.formatedAssetString(),
-      assetPrice: this.oneMinuteChart[this.oneMinuteChart.length - 1],
-      result: txHash,
-      rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
-    };
-    this.sellOrders.push(txRecord);
-    this.txRecords.push(txRecord);
-    await delay(12 * 1000);
-    await this.writeTXToFile(txRecord);
+      // only sell $400  of btc
+      const syntheticBTC = await this.thorchainQuery.convert(amount, fromAsset);
+      const destinationAsset = assetsBUSD;
+      const swapDetail: SwapDetail = {
+        amount: syntheticBTC,
+        decimals: 8,
+        fromAsset,
+        destinationAsset,
+      };
+      const txHash = await doSingleSwap(
+        tradingWallet.thorchainAmm,
+        tradingWallet.wallet,
+        swapDetail
+      );
+      console.log(txHash);
+      let txRecord: TxDetail = {
+        date: new Date(),
+        action: TradingMode.sell,
+        asset: fromAsset,
+        amount: swapDetail.amount.formatedAssetString(),
+        assetPrice: this.oneMinuteChart[this.oneMinuteChart.length - 1],
+        result: txHash,
+        rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
+      };
+      this.sellOrders.push(txRecord);
+      this.txRecords.push(txRecord);
+      await delay(12 * 1000);
+      await this.writeTXToFile(txRecord);
+
+    }else {
+      this.signalTracker.push(`Balance BTC synth: ${bal.sbtc.assetAmount.amount().toNumber()}`)
+    }
+
   }
 
   private async buy(tradingWallet: TradingWallet) {
@@ -637,32 +599,36 @@ export class AlphaBot {
 
     const sbusd = new CryptoAmount(assetToBase(assetAmount(tradingAmount)), assetsBUSD)
     const fromAsset = assetsBUSD;
-    const destinationAsset = btcSynthPaused.synth_mint_paused ? assetsBTCB : assetsBTC;
+    const destinationAsset =  assetsBTC;
     const swapDetail: SwapDetail = {
       amount: sbusd,
       decimals: 8,
       fromAsset,
       destinationAsset,
     };
-    const txHash = await doSingleSwap(
-      tradingWallet.thorchainAmm,
-      tradingWallet.wallet,
-      swapDetail
-    );
-    console.log(txHash);
-    let txRecord: TxDetail = {
-      date: new Date(),
-      action: TradingMode.buy,
-      asset: fromAsset,
-      amount: swapDetail.amount.formatedAssetString(),
-      assetPrice: this.oneMinuteChart[this.oneMinuteChart.length - 1],
-      result: txHash,
-      rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
-    };
-    this.buyOrders.push(txRecord);
-    this.txRecords.push(txRecord);
-    await delay(12 * 1000);
-    await this.writeTXToFile(txRecord);
+    if (! btcSynthPaused.synth_mint_paused) {
+      const txHash = await doSingleSwap(
+        tradingWallet.thorchainAmm,
+        tradingWallet.wallet,
+        swapDetail
+      );
+      console.log(txHash);
+      let txRecord: TxDetail = {
+        date: new Date(),
+        action: TradingMode.buy,
+        asset: fromAsset,
+        amount: swapDetail.amount.formatedAssetString(),
+        assetPrice: this.oneMinuteChart[this.oneMinuteChart.length - 1],
+        result: txHash,
+        rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
+      };
+      this.buyOrders.push(txRecord);
+      this.txRecords.push(txRecord);
+      await delay(12 * 1000);
+      await this.writeTXToFile(txRecord);
+    } else {
+      this.signalTracker.push('BTC synth trading is paused')
+    }
   }
   /**
    *
@@ -735,7 +701,7 @@ export class AlphaBot {
       const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
       const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
       console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
-      console.log(`Btc in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
+      console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
     }catch (err) {console.log(`Can't fetch balances`)}
 
     console.log(`Buy records: `, this.buyOrders.length);
@@ -747,7 +713,7 @@ export class AlphaBot {
         ? timeAlive.timeInHours
         : timeAlive.timeInMinutes
     );
-    if(Number(timeAlive.timeInHours) % 3 && this.signalTracker.length > 1) {
+    if(Number(timeAlive.timeInHours) % 2 && this.signalTracker.length > 1) {
       await this.writeSignalToFile(this.signalTracker);
     }
     console.log(`Minute Chart length: `, this.oneMinuteChart.length);
