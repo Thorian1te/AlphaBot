@@ -49,7 +49,9 @@ const rsiUpperThreshold = 70
 const rsiLowerThreshold = 30
 
 // amount to be traded in 
-const tradingAmount = 400 
+const tradingAmount = 400
+
+const tradePercentage = 0.03 //represented as a number
 
 
 export class AlphaBot {
@@ -174,6 +176,10 @@ export class AlphaBot {
     console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
     let sellSignal: Signal;
     let buySignal: Signal;
+    this.readLastBuyTrade()
+    console.log(`Last buy ${this.buyOrders[0].assetPrice}`)
+    this.readLastSellTrade()
+    console.log(`Last sell ${this.sellOrders[0].assetPrice}`)
 
     console.log(
       `Last Price: ${this.asset.chain} $`,
@@ -337,11 +343,11 @@ export class AlphaBot {
     const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
     if (signal.type === TradingMode.buy) {
       console.log(bal.sbusd.formatedAssetString());
-      const decision = bal.sbusd.assetAmount.amount().toNumber() > 411 ? TradingMode.buy : TradingMode.hold
+      const decision = bal.sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
       return decision;
     } else if (signal.type === TradingMode.sell) {
       console.log(bal.sbtc.formatedAssetString());
-      const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
+      const decision = sbusd.assetAmount.amount().toNumber() > 420 ? TradingMode.sell : TradingMode.hold
       return decision;
     } else {
       if (hasTxRecords) {
@@ -387,12 +393,14 @@ export class AlphaBot {
       this.signalTracker.push(`RSI: ${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, RSI&MACD`);
      
     }
-    // trade based off signals gpt reccomended 
-    if (this.oneMinuteChart.slice(-1) > sma.slice(-1) && this.oneMinuteChart.slice(-1) > ema.slice(-1) && tradeSignal.macd && this.oneMinuteChart.slice(-1) > psar.psar.slice(-1)) {
-      // If the current price is above SMA, EMA, MACD is positive, and above SAR, generate a buy signal
-      console.log("Buy signal generated");
-      tradeSignal.type = TradingMode.buy;
-      this.signalTracker.push(`RSI: ${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, GPT`);
+    // Trade based off percentage gained
+    const percentageGained = this.gainedFromSell()
+    const bal = await this.getSynthBalance()
+    console.log(`percentage gained since sell, ${percentageGained}`)
+    if (percentageGained > tradePercentage && bal.sbusd.assetAmount.amount().toNumber() >  420) {
+      console.log(`percentage gained since sell, ${percentageGained}, BUSD: ${ bal.sbusd.assetAmount.amount().toNumber()}`)
+      this.signalTracker.push(`% gained since sell: ${percentageGained}`)
+      tradeSignal.type = TradingMode.buy
     }
     // trade based of macd below rsi threshold and price direction
     if (tradeSignal.macd  && this.tradingIndicators.rsi[this.tradingIndicators.rsi.length -1] < 45 && tradeSignal.histogram) {
@@ -447,12 +455,15 @@ export class AlphaBot {
       this.signalTracker.push(`RSI&MACD ${tradeSignal.macd, tradeSignal.macd} RSI: ${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, RSI&MACD`);
 
     }
-    // Trade based off signals gpt reccommended 
-    if (this.oneMinuteChart.slice(-1) < sma.slice(-1) && this.oneMinuteChart.slice(-1) < ema.slice(-1) && tradeSignal.macd && this.oneMinuteChart.slice(-1) < psar.psar.slice(-1)) {
-      // If the current price is below SMA, EMA, MACD is negative, and below SAR, generate a sell signal
-      console.log("Sell signal generated");
-      tradeSignal.type = TradingMode.sell;
-      this.signalTracker.push(`RSI&MACD ${tradeSignal.macd, tradeSignal.macd} RSI: ${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, GPT`);
+    // Trade based off percentage gained 
+    const percentageGained = this.gainedFromBuy()
+    console.log(`percentage gained since buy, ${percentageGained}`)
+    const bal = this.getSynthBalance()
+    const btcInBusd = await this.thorchainQuery.convert((await bal).sbtc, assetsBUSD)
+    if (percentageGained > tradePercentage && btcInBusd.assetAmount.amount().toNumber() >  420) {
+      console.log(`percentage gained since buy, ${percentageGained}, BTC: ${btcInBusd.assetAmount.amount().toNumber()}`)
+      this.signalTracker.push(`% gained since buy: ${percentageGained}`)
+      tradeSignal.type = TradingMode.sell
     }
     // Trade macd above rsi threshold
     if (tradeSignal.macd && this.tradingIndicators.rsi[this.tradingIndicators.rsi.length -1] > 65 && tradeSignal.histogram ) {
@@ -470,6 +481,39 @@ export class AlphaBot {
     }
     return tradeSignal
   }
+
+
+  private gainedFromBuy(): number {
+    if (this.buyOrders.length === 0) {
+      throw new Error("No buy orders available");
+    }
+  
+    const lastBuyPrice = this.buyOrders[0].assetPrice;
+    const assetPrice = +this.oneMinuteChart.slice(-1)[0];
+    if (isNaN(assetPrice)) {
+      throw new Error("Invalid asset price");
+    }
+  
+    const percentageChange = ((assetPrice - lastBuyPrice) / lastBuyPrice);
+    return percentageChange;
+  }
+  
+  private gainedFromSell(): number {
+    if (this.sellOrders.length === 0) {
+      throw new Error("No sell orders available");
+    }
+  
+    const lastSellPrice = this.sellOrders[0].assetPrice;
+    const assetPrice = +this.oneMinuteChart.slice(-1)[0];
+  
+    if (isNaN(assetPrice)) {
+      throw new Error("Invalid asset price");
+    }
+  
+    const percentageChange = ((lastSellPrice - assetPrice ) / assetPrice);
+    return percentageChange;
+  }
+  
 
 
   // ---------------------------- file sync ---------------------------------
@@ -518,6 +562,18 @@ export class AlphaBot {
         this.oneMinuteChart.push(resp);
       }
     }
+  }
+  private async readLastSellTrade() {
+    const result: TxDetail = JSON.parse(
+      fs.readFileSync(`sellBTCtxRecords.json`, "utf8")
+    );
+    this.sellOrders.push(result)
+  }
+  private async readLastBuyTrade() {
+    const result: TxDetail = JSON.parse(
+      fs.readFileSync(`buyBUSDtxRecords.json`, "utf8")
+    );
+    this.buyOrders.push(result)
   }
   // -------------------------------- Wallet actions ------------------------------------
 
@@ -647,9 +703,10 @@ export class AlphaBot {
     let synthbtc = assetsBTC;
     let synthBUSD = assetsBUSD;
     let synthBTCB = assetsBTCB;
-    const address = this.wallet.clients[THORChain].getAddress();
-    const balance = await this.wallet.clients[THORChain].getBalance(address);
+
     try {
+      const address = this.wallet.clients[THORChain].getAddress();
+      const balance = await this.wallet.clients[THORChain].getBalance(address);
       const bitcoinBal = balance.find(
         (asset) => asset.asset.ticker === synthbtc.ticker
       ) ? balance.find((asset) => asset.asset.ticker === synthbtc.ticker).amount : null;
