@@ -388,11 +388,6 @@ export class AlphaBot {
     // try and catch the price rebounding on the 1 minute
     const checkPriceReturn = this.tradingIndicators.checkBuySignal(this.oneMinuteChart)
 
-    if (tradeSignal.macd && tradeSignal.rsi) {
-       tradeSignal.type = TradingMode.buy
-      this.signalTracker.push(`RSI: ${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, RSI&MACD`);
-     
-    }
     // Trade based off percentage gained
     const percentageGained = this.gainedFromSell()
     const bal = await this.getSynthBalance()
@@ -401,15 +396,6 @@ export class AlphaBot {
       console.log(`percentage gained since sell, ${percentageGained}, BUSD: ${ bal.sbusd.assetAmount.amount().toNumber()}`)
       this.signalTracker.push(`% gained since sell: ${percentageGained}`)
       tradeSignal.type = TradingMode.buy
-    }
-    // trade based of macd below rsi threshold and price direction
-    if (tradeSignal.macd  && this.tradingIndicators.rsi[this.tradingIndicators.rsi.length -1] < 45 && tradeSignal.histogram) {
-      tradeSignal.type = TradingMode.buy;
-      this.signalTracker.push(`${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, macd: ${tradeSignal.macd} RSI&MACD&HISTO`);
-    }
-    // Don't trade in this range
-    if (!tradeSignal.macd || !tradeSignal.rsi) {
-      tradeSignal.type = TradingMode.hold;
     }
     // Try and catch the wick
     if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] < 20 && checkPriceReturn) {
@@ -449,12 +435,6 @@ export class AlphaBot {
     // try and catch the price returning on the one minute 
     const checkPriceReturn = this.tradingIndicators.checkSellSignal(this.oneMinuteChart)
  
-    // Trade based off signals
-    if (tradeSignal.macd && tradeSignal.rsi) {
-      tradeSignal.type = TradingMode.sell
-      this.signalTracker.push(`RSI&MACD ${tradeSignal.macd, tradeSignal.macd} RSI: ${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, RSI&MACD`);
-
-    }
     // Trade based off percentage gained 
     const percentageGained = this.gainedFromBuy()
     console.log(`percentage gained since buy, ${percentageGained}`)
@@ -464,15 +444,6 @@ export class AlphaBot {
       console.log(`percentage gained since buy, ${percentageGained}, BTC: ${btcInBusd.assetAmount.amount().toNumber()}`)
       this.signalTracker.push(`% gained since buy: ${percentageGained}`)
       tradeSignal.type = TradingMode.sell
-    }
-    // Trade macd above rsi threshold
-    if (tradeSignal.macd && this.tradingIndicators.rsi[this.tradingIndicators.rsi.length -1] > 65 && tradeSignal.histogram ) {
-      tradeSignal.type = TradingMode.hold;
-      this.signalTracker.push(`RSI: ${this.tradingIndicators.rsi.slice(-1)} ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type},  ${priceDirection} macd: ${tradeSignal.macd} histo&rsi&Macd`);
-    }
-    // Dont trade this range
-    if (!tradeSignal.macd || !tradeSignal.rsi) {
-      tradeSignal.type = TradingMode.hold;
     }
     // Try and catch the wick 
     if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] > 80 && checkPriceReturn) {
