@@ -51,7 +51,7 @@ const rsiLowerThreshold = 30
 // amount to be traded in 
 const tradingAmount = 400
 
-const tradePercentage = 0.028 //represented as a number
+const tradePercentage = 0.03 //represented as a number
 
 
 export class AlphaBot {
