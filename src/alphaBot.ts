@@ -130,6 +130,8 @@ export class AlphaBot {
     console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
     console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
     this.schedule();
+    this.readLastBuyTrade()
+    this.readLastSellTrade()
     while (this.botConfig.botMode !== BotMode.stop) {
       let action: TradingMode;
       const tradingHalted = await this.isTradingHalted();
@@ -176,8 +178,6 @@ export class AlphaBot {
     console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
     let sellSignal: Signal;
     let buySignal: Signal;
-    this.readLastBuyTrade()
-    this.readLastSellTrade()
     if(this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date ) {
       if(this.txRecords.length < 1) this.txRecords.push(this.buyOrders.slice(-1)[0])
     } else {
@@ -567,21 +567,18 @@ export class AlphaBot {
    */
   private async sell(tradingWallet: TradingWallet) {
     const bal = await this.getSynthBalance(); 
-    const amount = new CryptoAmount(
-      assetToBase(assetAmount(400, 8)),
-      assetsBTC
-    );
 
     const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+    const sellAmount = sbusd.assetAmount.amount().toNumber() - 1
+    const busdMinusOne = new CryptoAmount(assetToBase(assetAmount(sellAmount)), assetsBUSD)
+    const sythBTC = await this.thorchainQuery.convert(busdMinusOne, bal.sbtc.asset)
     // do we have more than 400 dollars of btc
     if(sbusd.assetAmount.amount().toNumber() > 400) {
       const fromAsset = bal.sbtc.asset
-
-      // only sell $400  of btc
-      const syntheticBTC = await this.thorchainQuery.convert(amount, fromAsset);
+      // sell the balance
       const destinationAsset = assetsBUSD;
       const swapDetail: SwapDetail = {
-        amount: syntheticBTC,
+        amount: sythBTC,
         decimals: 8,
         fromAsset,
         destinationAsset,
