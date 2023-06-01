@@ -177,9 +177,12 @@ export class AlphaBot {
     let sellSignal: Signal;
     let buySignal: Signal;
     this.readLastBuyTrade()
-    console.log(`Last buy ${this.buyOrders[0].assetPrice}`)
     this.readLastSellTrade()
-    console.log(`Last sell ${this.sellOrders[0].assetPrice}`)
+    if(this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date ) {
+      if(this.txRecords.length < 1) this.txRecords.push(this.buyOrders.slice(-1)[0])
+    } else {
+      if(this.txRecords.length < 1) this.txRecords.push(this.sellOrders.slice(-1)[0])
+    }
 
     console.log(
       `Last Price: ${this.asset.chain} $`,
@@ -389,12 +392,12 @@ export class AlphaBot {
     const checkPriceReturn = this.tradingIndicators.checkBuySignal(this.oneMinuteChart)
 
     // Trade based off percentage gained
-    const percentageGained = this.gainedFromSell()
+    const percentageGained = this.percentageChangeFromTrade()
     const bal = await this.getSynthBalance()
-    console.log(`percentage gained since sell, ${percentageGained}`)
+    console.log(`percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
     if (percentageGained > tradePercentage && bal.sbusd.assetAmount.amount().toNumber() >  420) {
-      console.log(`percentage gained since sell, ${percentageGained}, BUSD: ${ bal.sbusd.assetAmount.amount().toNumber()}`)
-      this.signalTracker.push(`% gained since sell: ${percentageGained}`)
+      console.log(`percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}, BUSD: ${ bal.sbusd.assetAmount.amount().toNumber()}`)
+      this.signalTracker.push(`% changed since ${this.txRecords.slice(-1)[0].action}: ${percentageGained}`)
       tradeSignal.type = TradingMode.buy
     }
     // Try and catch the wick
@@ -436,13 +439,13 @@ export class AlphaBot {
     const checkPriceReturn = this.tradingIndicators.checkSellSignal(this.oneMinuteChart)
  
     // Trade based off percentage gained 
-    const percentageGained = this.gainedFromBuy()
-    console.log(`percentage gained since buy, ${percentageGained}`)
+    const percentageGained = this.percentageChangeFromTrade()
+    console.log(`percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
     const bal = this.getSynthBalance()
     const btcInBusd = await this.thorchainQuery.convert((await bal).sbtc, assetsBUSD)
     if (percentageGained > tradePercentage && btcInBusd.assetAmount.amount().toNumber() >  420) {
-      console.log(`percentage gained since buy, ${percentageGained}, BTC: ${btcInBusd.assetAmount.amount().toNumber()}`)
-      this.signalTracker.push(`% gained since buy: ${percentageGained}`)
+      console.log(`percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}, BTC: ${btcInBusd.assetAmount.amount().toNumber()}`)
+      this.signalTracker.push(`% changed since ${this.txRecords.slice(-1)[0].action}: ${percentageGained}`)
       tradeSignal.type = TradingMode.sell
     }
     // Try and catch the wick 
@@ -454,38 +457,21 @@ export class AlphaBot {
   }
 
 
-  private gainedFromBuy(): number {
-    if (this.buyOrders.length === 0) {
+  private percentageChangeFromTrade(): number {
+    if (this.txRecords.length === 0) {
       throw new Error("No buy orders available");
     }
   
-    const lastBuyPrice = this.buyOrders[0].assetPrice;
+    const lastTradePrice = this.txRecords[0].assetPrice;
     const assetPrice = +this.oneMinuteChart.slice(-1)[0];
     if (isNaN(assetPrice)) {
       throw new Error("Invalid asset price");
     }
   
-    const percentageChange = ((assetPrice - lastBuyPrice) / lastBuyPrice);
+    const percentageChange = ((assetPrice - lastTradePrice) / lastTradePrice);
     return percentageChange;
   }
   
-  private gainedFromSell(): number {
-    if (this.sellOrders.length === 0) {
-      throw new Error("No sell orders available");
-    }
-  
-    const lastSellPrice = this.sellOrders[0].assetPrice;
-    const assetPrice = +this.oneMinuteChart.slice(-1)[0];
-  
-    if (isNaN(assetPrice)) {
-      throw new Error("Invalid asset price");
-    }
-  
-    const percentageChange = ((lastSellPrice - assetPrice ) / assetPrice);
-    return percentageChange;
-  }
-  
-
 
   // ---------------------------- file sync ---------------------------------
   /**
@@ -538,13 +524,19 @@ export class AlphaBot {
     const result: TxDetail = JSON.parse(
       fs.readFileSync(`sellBTCtxRecords.json`, "utf8")
     );
-    this.sellOrders.push(result)
+    if(this.sellOrders.slice(-1)[0] != result){
+      this.sellOrders.push(result)
+    }
+
   }
   private async readLastBuyTrade() {
     const result: TxDetail = JSON.parse(
       fs.readFileSync(`buyBUSDtxRecords.json`, "utf8")
     );
-    this.buyOrders.push(result)
+    if(this.buyOrders.slice(-1)[0] != result){
+      this.buyOrders.push(result)
+    }
+
   }
   // -------------------------------- Wallet actions ------------------------------------
 
