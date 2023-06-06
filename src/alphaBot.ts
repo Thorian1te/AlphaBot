@@ -55,7 +55,6 @@ const tradePercentage = 0.03 //represented as a number
 
 
 export class AlphaBot {
-  //private pools: Record<string, LiquidityPool> | undefined
   private thorchainCache: ThorchainCache;
   private thorchainQuery: ThorchainQuery;
   private tradingIndicators: TradingIndicators
@@ -176,8 +175,7 @@ export class AlphaBot {
     await this.writeToFile(this.tradingIndicators.rsi, "rsi");
     console.log(`Collecting trading signals for ${interval}`);
     console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
-    let sellSignal: Signal;
-    let buySignal: Signal;
+    let signal: Signal;
     if(this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date ) {
       if(this.txRecords.length < 1) this.txRecords.push(this.buyOrders.slice(-1)[0])
     } else {
@@ -195,20 +193,10 @@ export class AlphaBot {
       );
       return TradingMode.hold;
     } else {
-      if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] > 50) {
-        sellSignal = await this.sellSignal(macd);
-        console.log(`Sell > macd: ${sellSignal.macd}, rsi: ${sellSignal.rsi}, histo: ${sellSignal.histogram}`);
-        market = await this.checkWalletBal(sellSignal);
-        await this.executeAction(market);
-      } else if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] < 50) {
-        buySignal = await this.buySignal(macd);
-        console.log(`Buy > macd: ${buySignal.macd}, rsi: ${buySignal.rsi}, histo: ${buySignal.histogram}`);
-        market = await this.checkWalletBal(buySignal);
-        await this.executeAction(market);
-      } else {
-        market = TradingMode.hold;
-        await this.executeAction(market);
-      }
+      signal = await this.signal(macd);
+      console.log(signal)
+      market = await this.checkWalletBal(signal);
+      await this.executeAction(market);
     }
   }
   // ----------------------------------- Data collection for intervals -------------------------------
@@ -216,7 +204,7 @@ export class AlphaBot {
     this.asset = assetsBTC;
     console.log(`Collecting ${this.asset.ticker} pool price`);
     await this.readFromFile(interval);
-    const highlow = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart);
+    const highlow = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart, 1080);
     console.log(`One minute chart highs and lows`, highlow.high.slice(-1), highlow.low.slice(-1));
 
     while (start) {
@@ -350,7 +338,7 @@ export class AlphaBot {
       return decision;
     } else if (signal.type === TradingMode.sell) {
       console.log(bal.sbtc.formatedAssetString());
-      const decision = sbusd.assetAmount.amount().toNumber() > 420 ? TradingMode.sell : TradingMode.hold
+      const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.sell : TradingMode.hold
       return decision;
     } else {
       if (hasTxRecords) {
@@ -361,54 +349,7 @@ export class AlphaBot {
     }
   }
   
-  private async buySignal(macdResult: MacdResult): Promise<Signal> {
-    let tradeSignal: Signal = {
-      type: TradingMode.hold,
-      macd: false,
-      rsi: false,
-      histogram: false
-    };
-    tradeSignal.macd = this.tradingIndicators.checkMacdBuySignal(macdResult);
-    const sma = await this.tradingIndicators.getSma(this.fifteenMinuteChart, 15);
-    const ema = await this.tradingIndicators.getEma(this.fifteenMinuteChart, 15);
-    const highLow = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart.slice(-1080));
-    const psar = await this.tradingIndicators.getParabolicSar(highLow.high, highLow.low, this.fifteenMinuteChart.slice(-72));
-  
-    tradeSignal.histogram = macdResult.histogram[macdResult.histogram.length -1] < 0 ? true : false;
-    const rsiData = await this.tradingIndicators.valueDirection(this.tradingIndicators.rsi, 12, "rsi");
-    const priceDirection = await this.tradingIndicators.valueDirection(
-      this.oneMinuteChart,
-      10,
-      "price"
-    );
-    console.log(`Rsi direction ${rsiData}`);
-    console.log(`Price direction ${rsiData}`);
-    const histogramDirection = await this.tradingIndicators.valueDirection(macdResult.histogram, 12, "histo")
-    console.log(`histogram Direction`, histogramDirection)
-    console.log(`sma`, sma.slice(-1), `ema`, ema.slice(-1), `psar`, psar.psar.slice(-1), `Trend:`, psar.trends.slice(-1));
-    console.log(`Histogram: `, macdResult.histogram[macdResult.histogram.length -1])
-    tradeSignal.rsi = await this.tradingIndicators.isRSIBuySignal(24, rsiLowerThreshold);
-    // try and catch the price rebounding on the 1 minute
-    const checkPriceReturn = this.tradingIndicators.checkBuySignal(this.oneMinuteChart)
-
-    // Trade based off percentage gained
-    const percentageGained = this.percentageChangeFromTrade()
-    const bal = await this.getSynthBalance()
-    console.log(`percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
-    if (percentageGained > tradePercentage && bal.sbusd.assetAmount.amount().toNumber() >  420) {
-      console.log(`percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}, BUSD: ${ bal.sbusd.assetAmount.amount().toNumber()}`)
-      this.signalTracker.push(`% changed since ${this.txRecords.slice(-1)[0].action}: ${percentageGained}`)
-      tradeSignal.type = TradingMode.buy
-    }
-    // Try and catch the wick
-    if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] < 20 && checkPriceReturn) {
-       tradeSignal.type = TradingMode.buy;
-      this.signalTracker.push(`${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, ${priceDirection}, Price Return ${checkPriceReturn} WICK`);
-     
-    }
-    return tradeSignal
-  }
-  private async sellSignal(macdResult: MacdResult): Promise<Signal> {
+  private async signal(macdResult: MacdResult): Promise<Signal> {
     let tradeSignal: Signal = {
       type: TradingMode.hold,
       macd: false,
@@ -417,43 +358,77 @@ export class AlphaBot {
     };
 
     // period being passed in is 3 hours
-    tradeSignal.macd = this.tradingIndicators.checkMacdSellSignal(macdResult)
+
     tradeSignal.histogram = macdResult.histogram[macdResult.histogram.length -1] > 0 ? true : false
     const rsiData = await this.tradingIndicators.valueDirection(this.tradingIndicators.rsi, 12, "rsi");
     tradeSignal.rsi = await this.tradingIndicators.isRSISellSignal(24, rsiUpperThreshold);
-    const priceDirection = await this.tradingIndicators.valueDirection(
-      this.oneMinuteChart,
-      10,
-      "price"
-    );
-    console.log(`Rsi direction ${rsiData}`);
-    console.log(`Price direction ${rsiData}`);
-    const histogramDirection = await this.tradingIndicators.valueDirection(macdResult.histogram, 12, "histo")
-    console.log(`histogram Direction`, histogramDirection)
     const sma = await this.tradingIndicators.getSma(this.fifteenMinuteChart, 15);
     const ema = await this.tradingIndicators.getEma(this.fifteenMinuteChart, 15);
-    const highLow = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart.slice(-1080));
-    const psar = await this.tradingIndicators.getParabolicSar(highLow.high, highLow.low, this.fifteenMinuteChart.slice(-72));
-    console.log(`sma`, sma.slice(-1), `ema`, ema.slice(-1), `psar`, psar.psar.slice(-1), `Trend:`, psar.trends.slice(-1));
+    const highLowPastFifteenMinutes = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart.slice(-1080), 15);
+    const highLowPastThreeHours = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart.slice(-180), 180)
+    console.log(`Past three hours \nHigh ${highLowPastThreeHours.high} \nLow ${highLowPastThreeHours.low}`)
+    const psar = await this.tradingIndicators.getParabolicSar(highLowPastFifteenMinutes.high, highLowPastFifteenMinutes.low, this.fifteenMinuteChart.slice(-72));
+
     // try and catch the price returning on the one minute 
     const checkPriceReturn = this.tradingIndicators.checkSellSignal(this.oneMinuteChart)
- 
-    // Trade based off percentage gained 
+
+    // Check percentage gained 
     const percentageGained = this.percentageChangeFromTrade()
-    console.log(`percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
-    const bal = this.getSynthBalance()
-    const btcInBusd = await this.thorchainQuery.convert((await bal).sbtc, assetsBUSD)
-    if (percentageGained > tradePercentage && btcInBusd.assetAmount.amount().toNumber() >  420) {
-      console.log(`percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}, BTC: ${btcInBusd.assetAmount.amount().toNumber()}`)
-      this.signalTracker.push(`% changed since ${this.txRecords.slice(-1)[0].action}: ${percentageGained}`)
-      tradeSignal.type = TradingMode.sell
+    console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
+
+    // analyse ema sam and psar
+    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema)
+
+    if(tradeDecision === TradingMode.sell) {
+      tradeSignal.macd = this.tradingIndicators.checkMacdSellSignal(macdResult)
+      // Trade based off macd only 
+      if(tradeSignal.macd){
+        console.log(`macd: ${tradeSignal.macd} Price return ${checkPriceReturn}`)
+        this.signalTracker.push(`MACD crossed below the signal, sell signal confirmed, Rsi direction ${rsiData} PRice return ${checkPriceReturn}`)
+        tradeSignal.type = TradingMode.sell
+      }
+      // trade on the psar 
+      for (let i = 0; i < psar.psar.length; i++) {
+        if (psar.trends[i] > 0 && psar[i] < this.fifteenMinuteChart[i]) {
+          console.log(`Psar flash sell signal, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+          this.signalTracker.push(`Psar flash sell signal, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+          tradeSignal.type = TradingMode.sell
+        } else if (psar.trends[i] < 0 && psar[i] > this.fifteenMinuteChart[i]) {
+          console.log(`Psar flash buy signal \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+          this.signalTracker.push(`Psar flash buy signal \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+          tradeSignal.type = TradingMode.buy
+        } else {
+          tradeSignal.type = tradeDecision
+        }
+      }
+      return tradeSignal
+    } else if ( tradeDecision === TradingMode.buy) {
+      tradeSignal.macd = this.tradingIndicators.checkMacdBuySignal(macdResult);
+      // Trade based off macd only 
+      if(tradeSignal.macd){
+        console.log(`macd: ${tradeSignal.macd} Price return ${checkPriceReturn}`)
+        this.signalTracker.push(`MACD crossed above the signal, buy signal confirmed. Rsi direction ${rsiData}`)
+        tradeSignal.type = TradingMode.buy
+      }
+      // trade on the psar 
+      for (let i = 0; i < psar.psar.length; i++) {
+        if (psar.trends[i] > 0 && psar[i] < this.fifteenMinuteChart[i]) {
+          console.log(`Psar flash sell signal, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+          this.signalTracker.push(`Psar flash sell signal, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+          tradeSignal.type = TradingMode.sell
+        } else if (psar.trends[i] < 0 && psar[i] > this.fifteenMinuteChart[i]) {
+          console.log(`Psar flash buy signal \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+          this.signalTracker.push(`Psar flash buy signal \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+          tradeSignal.type = TradingMode.buy
+        } else {
+          tradeSignal.type = tradeDecision
+        }
+      }
+      return tradeSignal
+    } else {
+      tradeSignal.type = tradeDecision
+      return tradeSignal
     }
-    // Try and catch the wick 
-    if (this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1] > 80 && checkPriceReturn) {
-      tradeSignal.type = TradingMode.sell;
-      this.signalTracker.push(`RSI: ${this.tradingIndicators.rsi.slice(-1)}, ${this.oneMinuteChart.slice(-1)}, ${tradeSignal.type}, Price Return: ${checkPriceReturn} WICK`);
-    }
-    return tradeSignal
   }
 
 
