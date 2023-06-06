@@ -361,10 +361,10 @@ export class TradingIndicators {
   
     if (isBullishTrend) {
       tradingSignal = "Buy signal: Trend is bullish";
-      tradeType = TradingMode.buy
+      tradeType = TradingMode.hold
     } else if (isBearishTrend) {
       tradingSignal = "Sell signal: Trend is bearish";
-      tradeType = TradingMode.sell
+      tradeType = TradingMode.hold
     } else if (isBullishCrossover) {
       tradingSignal = "Buy signal: PSAR crossed above EMA";
       tradeType = TradingMode.buy
