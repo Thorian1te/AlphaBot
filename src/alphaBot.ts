@@ -383,8 +383,8 @@ export class AlphaBot {
       tradeSignal.macd = this.tradingIndicators.checkMacdSellSignal(macdResult)
       // Trade based off macd only 
       if(tradeSignal.macd){
-        console.log(`macd: ${tradeSignal.macd} Price return ${checkPriceReturn}`)
-        this.signalTracker.push(`MACD crossed below the signal, sell signal confirmed, Rsi direction ${rsiData} PRice return ${checkPriceReturn}`)
+        console.log(`macd: ${tradeSignal.macd} Price return ${checkPriceReturn},`)
+        this.signalTracker.push(`MACD crossed below the signal, sell signal confirmed, Rsi direction ${rsiData} PRice return ${checkPriceReturn} Last Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
         tradeSignal.type = TradingMode.sell
       }
       // trade on the psar 
@@ -407,7 +407,7 @@ export class AlphaBot {
       // Trade based off macd only 
       if(tradeSignal.macd){
         console.log(`macd: ${tradeSignal.macd} Price return ${checkPriceReturn}`)
-        this.signalTracker.push(`MACD crossed above the signal, buy signal confirmed. Rsi direction ${rsiData}`)
+        this.signalTracker.push(`MACD crossed above the signal, buy signal confirmed. Rsi direction ${rsiData}, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]} `)
         tradeSignal.type = TradingMode.buy
       }
       // trade on the psar 
