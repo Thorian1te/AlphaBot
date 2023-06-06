@@ -426,7 +426,7 @@ export class AlphaBot {
       }
       return tradeSignal
     } else {
-      tradeSignal.type = tradeDecision
+      tradeSignal.type = TradingMode.hold
       return tradeSignal
     }
   }
