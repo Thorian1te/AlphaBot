@@ -1,5 +1,5 @@
 import {ema, macd , rsi, sma, parabolicSar} from "indicatorts";
-import { HighAndLow, MacdResult, ParabolicSar } from "./types";
+import { HighAndLow, MacdResult, ParabolicSar, TradingMode } from "./types";
 
 export class TradingIndicators {
 
@@ -112,8 +112,8 @@ export class TradingIndicators {
       console.log("Price crossed above the previous period");
       return true;
     } else {
-      console.log(`Current price period: ${chart[currentPeriod]}`);
-      console.log(`Previous price period: ${chart[previousPeriod]}`);
+      console.log(`Current price period:`, chart[currentPeriod]);
+      console.log(`Previous price period:`, chart[previousPeriod]);
       return false;
     }
   }
@@ -198,6 +198,7 @@ export class TradingIndicators {
       // MACD lines were previously above the signal line and just crossed below,
       // and previous MACD lines were also above the signal line,
       // generate a sell signal
+
       console.log("MACD crossed below the signal, sell signal confirmed");
       return true;
     } else {
@@ -284,7 +285,7 @@ export class TradingIndicators {
    * @param data - input array
    * @returns
    */
-  public async findHighAndLowValues(data: number[]): Promise<HighAndLow> {
+  public async findHighAndLowValues(data: number[], period: number): Promise<HighAndLow> {
     const highArray: number[] = [];
     const lowArray: number[] = [];
     let high: number = Number.MIN_SAFE_INTEGER;
@@ -298,12 +299,12 @@ export class TradingIndicators {
         low = value;
       }
 
-      // Check for high and low values every 15 values
-      if ((i + 1) % 15 === 0) {
+      // Check for high and low values every period values
+      if ((i + 1) % period === 0) {
         // Push high and low values to the respective arrays
         highArray.push(high);
         lowArray.push(low);
-        // Reset high and low values for the next 15 values
+        // Reset high and low values for the next period values
         high = Number.MIN_SAFE_INTEGER;
         low = Number.MAX_SAFE_INTEGER;
       }
@@ -332,11 +333,6 @@ export class TradingIndicators {
       sumRateOfChange += rateOfChange;
     }
     const averageRateOfChange = sumRateOfChange / (sortArray.length - 1);
-    const roundedAverageRateOfChange =
-      Math.round(averageRateOfChange * 100) / 100;
-    console.log(
-      `Average rate of ${name} change: ${roundedAverageRateOfChange}`
-    );
     if (averageRateOfChange < 0) {
       return "Negative";
     } else if (averageRateOfChange > 0) {
@@ -344,6 +340,49 @@ export class TradingIndicators {
     } else {
       return "No Change";
     }
+  }
+
+  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[]): Promise<TradingMode> {
+    let tradeType: TradingMode
+    // Confirm trend direction
+    const isBullishTrend = psar[psar.length - 1] < sma[sma.length - 1] && psar[psar.length - 1] < ema[ema.length - 1];
+    const isBearishTrend = psar[psar.length - 1] > sma[sma.length - 1] && psar[psar.length - 1] > ema[ema.length - 1];
+  
+    // Check for crossover signals
+    const isBullishCrossover = psar[psar.length - 1] > ema[ema.length - 1] && psar[psar.length - 2] < ema[ema.length - 2];
+    const isBearishCrossover = psar[psar.length - 1] < ema[ema.length - 1] && psar[psar.length - 2] > ema[ema.length - 2];
+  
+    // Identify support and resistance levels
+    const supportLevel = Math.min(sma[sma.length - 1], ema[ema.length - 1]);
+    const resistanceLevel = Math.max(sma[sma.length - 1], ema[ema.length - 1]);
+  
+    // Generate trading decision based on the analysis
+    let tradingSignal = "";
+  
+    if (isBullishTrend) {
+      tradingSignal = "Buy signal: Trend is bullish";
+      tradeType = TradingMode.buy
+    } else if (isBearishTrend) {
+      tradingSignal = "Sell signal: Trend is bearish";
+      tradeType = TradingMode.sell
+    } else if (isBullishCrossover) {
+      tradingSignal = "Buy signal: PSAR crossed above EMA";
+      tradeType = TradingMode.buy
+    } else if (isBearishCrossover) {
+      tradingSignal = "Sell signal: PSAR crossed below EMA";
+      tradeType = TradingMode.sell
+    } else if (psar[psar.length - 1] > resistanceLevel) {
+      tradingSignal = "Sell signal: Price approaching resistance level";
+      tradeType = TradingMode.sell
+    } else if (psar[psar.length - 1] < supportLevel) {
+      tradingSignal = "Buy signal: Price approaching support level";
+      tradeType = TradingMode.buy
+    } else {
+      tradingSignal = "No clear trading signal";
+      tradeType = TradingMode.hold
+    }
+    console.log(tradingSignal)
+    return tradeType;
   }
 
   
