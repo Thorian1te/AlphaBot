@@ -376,8 +376,8 @@ export class AlphaBot {
     const percentageGained = this.percentageChangeFromTrade()
     console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
 
-    // analyse ema sam and psar
-    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema)
+    // analyse ema sma and psar & mcad
+    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macdResult.macdLine, macdResult.signalLine, 2)
 
     if(tradeDecision === TradingMode.sell) {
       tradeSignal.macd = this.tradingIndicators.checkMacdSellSignal(macdResult)
@@ -426,7 +426,7 @@ export class AlphaBot {
       }
       return tradeSignal
     } else {
-      tradeSignal.type = TradingMode.hold
+      tradeSignal.type = tradeDecision
       return tradeSignal
     }
   }

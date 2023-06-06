@@ -342,15 +342,26 @@ export class TradingIndicators {
     }
   }
 
-  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[]): Promise<TradingMode> {
-    let tradeType: TradingMode
-    // Confirm trend direction
-    const isBullishTrend = psar[psar.length - 1] < sma[sma.length - 1] && psar[psar.length - 1] < ema[ema.length - 1];
-    const isBearishTrend = psar[psar.length - 1] > sma[sma.length - 1] && psar[psar.length - 1] > ema[ema.length - 1];
+  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[],  macdLine: number[], signalLine: number[], trendWeight: number): Promise<TradingMode> {
+    let tradeType: TradingMode;
+    let bullishPeriods = 0;
+    let bearishPeriods = 0;
   
-    // Check for crossover signals
-    const isBullishCrossover = psar[psar.length - 1] > ema[ema.length - 1] && psar[psar.length - 2] < ema[ema.length - 2];
-    const isBearishCrossover = psar[psar.length - 1] < ema[ema.length - 1] && psar[psar.length - 2] > ema[ema.length - 2];
+    // Confirm trend direction
+    const isBullishTrend =
+      psar[psar.length - 1] < sma[sma.length - 1] &&
+      psar[psar.length - 1] < ema[ema.length - 1];
+    const isBearishTrend =
+      psar[psar.length - 1] > sma[sma.length - 1] &&
+      psar[psar.length - 1] > ema[ema.length - 1];
+  
+    // Check for MACD crossover signals
+    const isBullishCrossover =
+      macdLine[macdLine.length - 1] > signalLine[signalLine.length - 1] &&
+      macdLine[macdLine.length - 2] < signalLine[signalLine.length - 2];
+    const isBearishCrossover =
+      macdLine[macdLine.length - 1] < signalLine[signalLine.length - 1] &&
+      macdLine[macdLine.length - 2] > signalLine[signalLine.length - 2];
   
     // Identify support and resistance levels
     const supportLevel = Math.min(sma[sma.length - 1], ema[ema.length - 1]);
@@ -360,23 +371,34 @@ export class TradingIndicators {
     let tradingSignal = "";
   
     if (isBullishTrend) {
-      tradingSignal = "Buy signal: Trend is bullish";
-      tradeType = TradingMode.hold
+      bullishPeriods++;
+      bearishPeriods = 0;
     } else if (isBearishTrend) {
-      tradingSignal = "Sell signal: Trend is bearish";
-      tradeType = TradingMode.hold
+      bearishPeriods++;
+      bullishPeriods = 0;
+    }
+  
+    const isBullishConditionMet = bullishPeriods >= trendWeight;
+    const isBearishConditionMet = bearishPeriods >= trendWeight;
+  
+    if (isBullishConditionMet) {
+      tradingSignal = "Buy signal: Trend is consistently bullish";
+      tradeType = TradingMode.buy;
+    } else if (isBearishConditionMet) {
+      tradingSignal = "Sell signal: Trend is consistently bearish";
+      tradeType = TradingMode.sell;
     } else if (isBullishCrossover) {
       tradingSignal = "Buy signal: PSAR crossed above EMA";
-      tradeType = TradingMode.buy
+      tradeType = TradingMode.buy;
     } else if (isBearishCrossover) {
       tradingSignal = "Sell signal: PSAR crossed below EMA";
-      tradeType = TradingMode.sell
+      tradeType = TradingMode.sell;
     } else if (psar[psar.length - 1] > resistanceLevel) {
       tradingSignal = "Sell signal: Price approaching resistance level";
-      tradeType = TradingMode.sell
+      tradeType = TradingMode.sell;
     } else if (psar[psar.length - 1] < supportLevel) {
       tradingSignal = "Buy signal: Price approaching support level";
-      tradeType = TradingMode.buy
+      tradeType = TradingMode.buy;
     } else {
       tradingSignal = "No clear trading signal";
       tradeType = TradingMode.hold
