@@ -329,14 +329,14 @@ export class AlphaBot {
     const bal = await this.getSynthBalance(); 
     const hasTxRecords = this.txRecords.length > 0;
     const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
-    if (signal.type === TradingMode.buy ) {
-      console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
-      console.log(bal.sbusd.formatedAssetString());
+    const lastAction = this.txRecords[this.txRecords.length -1].action
+    console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
+    if (signal.type === TradingMode.buy && lastAction != 'buy') {
+      console.log(`Spending: `, bal.sbusd.formatedAssetString());
       const decision = bal.sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
       return decision;
-    } else if (signal.type === TradingMode.sell ) {
-      console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
-      console.log(bal.sbtc.formatedAssetString());
+    } else if (signal.type === TradingMode.sell && lastAction != 'sell' ) {
+      console.log(`Spending: `, bal.sbtc.formatedAssetString());
       const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.sell : TradingMode.hold
       return decision;
     } else {
@@ -519,8 +519,8 @@ export class AlphaBot {
         result: txHash,
         rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
       };
-      if(txRecord.result) this.sellOrders.push(txRecord);
-      if(txRecord.result) this.txRecords.push(txRecord);
+      if(txHash) this.sellOrders.push(txRecord);
+      if(txHash) this.txRecords.push(txRecord);
       await delay(12 * 1000);
       await this.writeTXToFile(txRecord);
 
@@ -559,8 +559,8 @@ export class AlphaBot {
         result: txHash,
         rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
       };
-      if(txRecord.result) this.buyOrders.push(txRecord);
-      if(txRecord.result) this.txRecords.push(txRecord);
+      if(txHash) this.buyOrders.push(txRecord);
+      if(txHash) this.txRecords.push(txRecord);
       await delay(12 * 1000);
       await this.writeTXToFile(txRecord);
     } else {
