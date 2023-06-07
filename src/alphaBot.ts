@@ -45,9 +45,6 @@ const assetsBTCB = assetFromStringEx(`BNB/BTCB-1DE`)
 
 const oneMinuteInMs = 60 * 1000; // 1 minute in milliseconds
 
-const rsiUpperThreshold = 70
-const rsiLowerThreshold = 30
-
 // amount to be traded in 
 const tradingAmount = 400
 
@@ -120,14 +117,6 @@ export class AlphaBot {
     console.log("Setting up wallet");
     await this.walletSetup();
     console.log("Running AlphaBot....");
-    const bal = await this.getSynthBalance();
-    console.log(bal.sbtc.formatedAssetString());
-    console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
-    console.log(bal.sbusd.formatedAssetString());
-    const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
-    const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
-    console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
-    console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
     this.schedule();
     this.readLastBuyTrade()
     this.readLastSellTrade()
@@ -193,6 +182,14 @@ export class AlphaBot {
       );
       return TradingMode.hold;
     } else {
+      const bal = await this.getSynthBalance();
+      console.log(bal.sbtc.formatedAssetString());
+      console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
+      console.log(bal.sbusd.formatedAssetString());
+      const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+      const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
+      console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
+      console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
       signal = await this.signal(macd);
       console.log(signal)
       market = await this.checkWalletBal(signal);
@@ -332,11 +329,13 @@ export class AlphaBot {
     const bal = await this.getSynthBalance(); 
     const hasTxRecords = this.txRecords.length > 0;
     const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
-    if (signal.type === TradingMode.buy) {
+    if (signal.type === TradingMode.buy && this.txRecords[this.txRecords.length -1].action != TradingMode.buy ) {
+      console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
       console.log(bal.sbusd.formatedAssetString());
       const decision = bal.sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
       return decision;
-    } else if (signal.type === TradingMode.sell) {
+    } else if (signal.type === TradingMode.sell && this.txRecords[this.txRecords.length -1].action != TradingMode.sell) {
+      console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
       console.log(bal.sbtc.formatedAssetString());
       const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.sell : TradingMode.hold
       return decision;
@@ -344,7 +343,7 @@ export class AlphaBot {
       if (hasTxRecords) {
       console.log('Last tx record:', this.txRecords[this.txRecords.length - 1]);
       }
-      console.log(sbusd.assetAmount.amount().toNumber()) 
+      console.log(`BTC balance in Busd:`, sbusd.assetAmount.amount().toNumber()) 
       return TradingMode.hold;
     }
   }
@@ -356,12 +355,9 @@ export class AlphaBot {
       rsi: false,
       histogram: false
     };
-
     // period being passed in is 3 hours
-
     tradeSignal.histogram = macdResult.histogram[macdResult.histogram.length -1] > 0 ? true : false
-    const rsiData = await this.tradingIndicators.valueDirection(this.tradingIndicators.rsi, 12, "rsi");
-    tradeSignal.rsi = await this.tradingIndicators.isRSISellSignal(24, rsiUpperThreshold);
+
     const sma = await this.tradingIndicators.getSma(this.fifteenMinuteChart, 15);
     const ema = await this.tradingIndicators.getEma(this.fifteenMinuteChart, 15);
     const highLowPastFifteenMinutes = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart.slice(-1080), 15);
@@ -369,66 +365,16 @@ export class AlphaBot {
     console.log(`Past three hours \nHigh ${highLowPastThreeHours.high} \nLow ${highLowPastThreeHours.low}`)
     const psar = await this.tradingIndicators.getParabolicSar(highLowPastFifteenMinutes.high, highLowPastFifteenMinutes.low, this.fifteenMinuteChart.slice(-72));
 
-    // try and catch the price returning on the one minute 
-    const checkPriceReturn = this.tradingIndicators.checkSellSignal(this.oneMinuteChart)
-
     // Check percentage gained 
     const percentageGained = this.percentageChangeFromTrade()
     console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
 
-    // analyse ema sma and psar & mcad
-    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macdResult.macdLine, macdResult.signalLine, 2)
+    // analyse ema sma and psar & mcad 
+    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macdResult.macdLine, macdResult.signalLine, 2, this.fifteenMinuteChart, psar.trends)
 
-    if(tradeDecision === TradingMode.sell) {
-      tradeSignal.macd = this.tradingIndicators.checkMacdSellSignal(macdResult)
-      // Trade based off macd only 
-      if(tradeSignal.macd){
-        console.log(`macd: ${tradeSignal.macd} Price return ${checkPriceReturn},`)
-        this.signalTracker.push(`MACD crossed below the signal, sell signal confirmed, Rsi direction ${rsiData} PRice return ${checkPriceReturn} Last Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
-        tradeSignal.type = TradingMode.sell
-      }
-      // trade on the psar 
-      for (let i = 0; i < psar.psar.length; i++) {
-        if (psar.trends[i] > 0 && psar[i] < this.fifteenMinuteChart[i]) {
-          console.log(`Psar flash sell signal, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
-          this.signalTracker.push(`Psar flash sell signal, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
-          tradeSignal.type = TradingMode.sell
-        } else if (psar.trends[i] < 0 && psar[i] > this.fifteenMinuteChart[i]) {
-          console.log(`Psar flash buy signal \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
-          this.signalTracker.push(`Psar flash buy signal \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
-          tradeSignal.type = TradingMode.buy
-        } else {
-          tradeSignal.type = tradeDecision
-        }
-      }
-      return tradeSignal
-    } else if ( tradeDecision === TradingMode.buy) {
-      tradeSignal.macd = this.tradingIndicators.checkMacdBuySignal(macdResult);
-      // Trade based off macd only 
-      if(tradeSignal.macd){
-        console.log(`macd: ${tradeSignal.macd} Price return ${checkPriceReturn}`)
-        this.signalTracker.push(`MACD crossed above the signal, buy signal confirmed. Rsi direction ${rsiData}, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]} `)
-        tradeSignal.type = TradingMode.buy
-      }
-      // trade on the psar 
-      for (let i = 0; i < psar.psar.length; i++) {
-        if (psar.trends[i] > 0 && psar[i] < this.fifteenMinuteChart[i]) {
-          console.log(`Psar flash sell signal, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
-          this.signalTracker.push(`Psar flash sell signal, \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
-          tradeSignal.type = TradingMode.sell
-        } else if (psar.trends[i] < 0 && psar[i] > this.fifteenMinuteChart[i]) {
-          console.log(`Psar flash buy signal \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
-          this.signalTracker.push(`Psar flash buy signal \nLast Price: ${this.asset.chain} ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
-          tradeSignal.type = TradingMode.buy
-        } else {
-          tradeSignal.type = tradeDecision
-        }
-      }
-      return tradeSignal
-    } else {
-      tradeSignal.type = tradeDecision
-      return tradeSignal
-    }
+    tradeSignal.type = tradeDecision.tradeType
+    this.signalTracker.push(`${tradeDecision.tradeSignal}`)
+    return tradeSignal
   }
 
 

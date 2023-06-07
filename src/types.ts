@@ -111,3 +111,8 @@ export type HighAndLow = {
     high: number[],
     low: number[]
 }
+
+export type TradeAnalysis = {
+    tradeSignal: string
+    tradeType: TradingMode
+}
