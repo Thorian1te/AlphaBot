@@ -1,5 +1,5 @@
 import {ema, macd , rsi, sma, parabolicSar} from "indicatorts";
-import { HighAndLow, MacdResult, ParabolicSar, TradingMode } from "./types";
+import { HighAndLow, MacdResult, ParabolicSar, TradeAnalysis, TradingMode } from "./types";
 
 export class TradingIndicators {
 
@@ -342,8 +342,11 @@ export class TradingIndicators {
     }
   }
 
-  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[],  macdLine: number[], signalLine: number[], trendWeight: number): Promise<TradingMode> {
-    let tradeType: TradingMode;
+  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[]): Promise<TradeAnalysis> {
+    let trade: TradeAnalysis = {
+      tradeSignal: "",
+      tradeType: TradingMode.hold,
+    };
     let bullishPeriods = 0;
     let bearishPeriods = 0;
   
@@ -367,9 +370,11 @@ export class TradingIndicators {
     const supportLevel = Math.min(sma[sma.length - 1], ema[ema.length - 1]);
     const resistanceLevel = Math.max(sma[sma.length - 1], ema[ema.length - 1]);
   
-    // Generate trading decision based on the analysis
-    let tradingSignal = "";
+    // trade on the psar 
+    const isFlashSellSignal = psar.every((value, i) => trends[i] > 0 && value < fifteenMinuteChart[i]);
+    const isFlashBuySignal = psar.every((value, i) => trends[i] < 0 && value > fifteenMinuteChart[i]);
   
+    // Generate trading decision based on the analysis
     if (isBullishTrend) {
       bullishPeriods++;
       bearishPeriods = 0;
@@ -382,30 +387,38 @@ export class TradingIndicators {
     const isBearishConditionMet = bearishPeriods >= trendWeight;
   
     if (isBullishConditionMet) {
-      tradingSignal = "Buy signal: Trend is consistently bullish";
-      tradeType = TradingMode.buy;
+      trade.tradeSignal = "Buy signal: Trend is consistently bullish";
+      trade.tradeType = TradingMode.buy;
     } else if (isBearishConditionMet) {
-      tradingSignal = "Sell signal: Trend is consistently bearish";
-      tradeType = TradingMode.sell;
+      trade.tradeSignal = "Sell signal: Trend is consistently bearish";
+      trade.tradeType = TradingMode.sell;
     } else if (isBullishCrossover) {
-      tradingSignal = "Buy signal: PSAR crossed above EMA";
-      tradeType = TradingMode.buy;
+      trade.tradeSignal = "Buy signal: PSAR crossed above EMA";
+      trade.tradeType = TradingMode.buy;
     } else if (isBearishCrossover) {
-      tradingSignal = "Sell signal: PSAR crossed below EMA";
-      tradeType = TradingMode.sell;
+      trade.tradeSignal = "Sell signal: PSAR crossed below EMA";
+      trade.tradeType = TradingMode.sell;
     } else if (psar[psar.length - 1] > resistanceLevel) {
-      tradingSignal = "Sell signal: Price approaching resistance level";
-      tradeType = TradingMode.sell;
+      trade.tradeSignal = "Sell signal: Price approaching resistance level";
+      trade.tradeType = TradingMode.sell;
     } else if (psar[psar.length - 1] < supportLevel) {
-      tradingSignal = "Buy signal: Price approaching support level";
-      tradeType = TradingMode.buy;
+      trade.tradeSignal = "Buy signal: Price approaching support level";
+      trade.tradeType = TradingMode.buy;
+    } else if (isFlashSellSignal) {
+      trade.tradeSignal = "Sell signal: Flash sell signal";
+      trade.tradeType = TradingMode.sell;
+    } else if (isFlashBuySignal) {
+      trade.tradeSignal = "Buy signal: Flash buy signal";
+      trade.tradeType = TradingMode.buy;
     } else {
-      tradingSignal = "No clear trading signal";
-      tradeType = TradingMode.hold
+      trade.tradeSignal = "No clear trading signal";
+      trade.tradeType = TradingMode.hold;
     }
-    console.log(tradingSignal)
-    return tradeType;
+    
+    console.log(trade.tradeSignal);
+    return trade;
   }
+  
 
   
 }
