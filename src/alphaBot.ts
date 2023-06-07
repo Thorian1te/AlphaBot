@@ -519,8 +519,8 @@ export class AlphaBot {
         result: txHash,
         rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
       };
-      this.sellOrders.push(txRecord);
-      this.txRecords.push(txRecord);
+      if(txRecord.result != '') this.sellOrders.push(txRecord);
+      if(txRecord.result != '') this.txRecords.push(txRecord);
       await delay(12 * 1000);
       await this.writeTXToFile(txRecord);
 
@@ -559,8 +559,8 @@ export class AlphaBot {
         result: txHash,
         rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
       };
-      this.buyOrders.push(txRecord);
-      this.txRecords.push(txRecord);
+      if(txRecord.result != '') this.buyOrders.push(txRecord);
+      if(txRecord.result != '') this.txRecords.push(txRecord);
       await delay(12 * 1000);
       await this.writeTXToFile(txRecord);
     } else {
