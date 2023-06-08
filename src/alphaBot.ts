@@ -373,7 +373,8 @@ export class AlphaBot {
     const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macdResult.macdLine, macdResult.signalLine, 2, this.fifteenMinuteChart, psar.trends)
 
     tradeSignal.type = tradeDecision.tradeType
-    this.signalTracker.push(`${tradeDecision.tradeSignal}`)
+    this.signalTracker.push(`${tradeDecision.tradeSignal}, Last price: ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`,
+    )
     return tradeSignal
   }
 
@@ -487,14 +488,16 @@ export class AlphaBot {
    * @param tradingWallet
    */
   private async sell(tradingWallet: TradingWallet) {
+    const pools = await this.thorchainCache.thornode.getPools()
+    const busdSynthPaused = pools.find((pool) => pool.asset === `${assetsBUSD.chain}.${assetsBUSD.symbol}`)
     const bal = await this.getSynthBalance(); 
 
     const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
     const sellAmount = sbusd.assetAmount.amount().toNumber() - 1
     const busdMinusOne = new CryptoAmount(assetToBase(assetAmount(sellAmount)), assetsBUSD)
-    const sythBTC = await this.thorchainQuery.convert(busdMinusOne, bal.sbtc.asset)
-    // do we have more than 400 dollars of btc
-    if(sbusd.assetAmount.amount().toNumber() > 400) {
+    const sythBTC = await this.thorchainQuery.convert(busdMinusOne, bal.sbtc.asset) // leave a dollar in here so bal is not null 
+    // is busd mint available
+    if(!busdSynthPaused.synth_mint_paused) {
       const fromAsset = bal.sbtc.asset
       // sell the balance
       const destinationAsset = assetsBUSD;
