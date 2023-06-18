@@ -342,14 +342,18 @@ export class TradingIndicators {
     }
   }
 
-  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[]): Promise<TradeAnalysis> {
+  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[], lastPrice: number): Promise<TradeAnalysis> {
     let trade: TradeAnalysis = {
       tradeSignal: "",
       tradeType: TradingMode.hold,
     };
     let bullishPeriods = 0;
-    let bearishPeriods = 0;
-  
+    let bearishPeriods = 0; 
+    const priceJumpThreshold = 5 // percentage change
+    const priceDropThreshold = 5 // percentage cahnge
+    const previousPrice = fifteenMinuteChart[fifteenMinuteChart.length -1]
+    const percentageChange = ((lastPrice - previousPrice) / previousPrice) * 100;
+
     // Confirm trend direction
     const isBullishTrend =
       psar[psar.length - 1] < sma[sma.length - 1] &&
@@ -387,38 +391,40 @@ export class TradingIndicators {
     const isBearishConditionMet = bearishPeriods >= trendWeight;
   
     if (isBullishConditionMet) {
-      trade.tradeSignal = "Buy signal: Trend is consistently bullish";
+      trade.tradeSignal = "Buy: Trend is consistently bullish";
       trade.tradeType = TradingMode.buy;
     } else if (isBearishConditionMet) {
-      trade.tradeSignal = "Sell signal: Trend is consistently bearish";
+      trade.tradeSignal = "Sell: Trend is consistently bearish";
       trade.tradeType = TradingMode.sell;
-    } else if (isBullishCrossover) {
-      trade.tradeSignal = "Buy signal: PSAR crossed above EMA";
+    } else if (isBullishCrossover && percentageChange >= priceJumpThreshold) {
+      trade.tradeSignal = "Buy: PSAR crossed above EMA";
       trade.tradeType = TradingMode.buy;
-    } else if (isBearishCrossover) {
-      trade.tradeSignal = "Sell signal: PSAR crossed below EMA";
+    } else if (isBearishCrossover && percentageChange >= -priceDropThreshold) {
+      trade.tradeSignal = "Sell: PSAR crossed below EMA";
       trade.tradeType = TradingMode.sell;
     } else if (psar[psar.length - 1] > resistanceLevel) {
-      trade.tradeSignal = "Sell signal: Price approaching resistance level";
-      trade.tradeType = TradingMode.sell;
+      trade.tradeSignal = "hold: Price approaching resistance level";
+      trade.tradeType = TradingMode.hold;
     } else if (psar[psar.length - 1] < supportLevel) {
-      trade.tradeSignal = "Buy signal: Price approaching support level";
-      trade.tradeType = TradingMode.buy;
+      trade.tradeSignal = "hold: Price approaching support level";
+      trade.tradeType = TradingMode.hold;
     } else if (isFlashSellSignal) {
-      trade.tradeSignal = "Sell signal: Flash sell signal";
+      trade.tradeSignal = "Sell: Flash sell signal";
       trade.tradeType = TradingMode.sell;
     } else if (isFlashBuySignal) {
-      trade.tradeSignal = "Buy signal: Flash buy signal";
+      trade.tradeSignal = "Buy: Flash buy signal";
       trade.tradeType = TradingMode.buy;
-    } else {
+    } else if (percentageChange >= priceJumpThreshold) {
+      trade.tradeSignal = `Sell: Sudden price jump detected (${percentageChange.toFixed(2)}% increase), Last price: BTC $${lastPrice.toFixed(2)}`;
+      trade.tradeType = TradingMode.sell;
+    } else if (percentageChange <= -priceDropThreshold) {
+      trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(2)}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+      trade.tradeType = TradingMode.buy;
+    }else {
       trade.tradeSignal = "No clear trading signal";
       trade.tradeType = TradingMode.hold;
     }
-    
     console.log(trade.tradeSignal);
     return trade;
   }
-  
-
-  
 }
