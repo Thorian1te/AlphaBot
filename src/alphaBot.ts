@@ -374,12 +374,20 @@ export class AlphaBot {
     console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
 
     // analyse ema sma and psar & mcad 
-    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macdResult.macdLine, macdResult.signalLine, 2, this.fifteenMinuteChart, psar.trends)
+    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macdResult.macdLine, macdResult.signalLine, 2, this.fifteenMinuteChart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1])
 
     tradeSignal.type = tradeDecision.tradeType
-    this.signalTracker.push(`${tradeDecision.tradeSignal}, Last price: ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`,
-    )
-    return tradeSignal
+    // Only push 1 signal ever 15 minutes && only trade off 1 signal every 15 minutes
+    const fifteenminuteInterval = (await this.getTimeDifference(this.botConfig.startTime)).timeInMinutes
+    if ( +fifteenminuteInterval % 15) {
+      this.signalTracker.push(`${tradeDecision.tradeSignal}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`,
+      )
+      return tradeSignal
+    } else {
+      tradeSignal.type = TradingMode.hold
+      return tradeSignal
+    }
+    
   }
 
 
