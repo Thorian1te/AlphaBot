@@ -379,15 +379,12 @@ export class AlphaBot {
     tradeSignal.type = tradeDecision.tradeType
     // Only push 1 signal ever 15 minutes && only trade off 1 signal every 15 minutes
     const fifteenminuteInterval = (await this.getTimeDifference(this.botConfig.startTime)).timeInMinutes
+
     if ( +fifteenminuteInterval % 15) {
       this.signalTracker.push(`${tradeDecision.tradeSignal}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`,
       )
-      return tradeSignal
-    } else {
-      tradeSignal.type = TradingMode.hold
-      return tradeSignal
-    }
-    
+    } 
+    return tradeSignal
   }
 
 
