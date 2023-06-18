@@ -176,7 +176,7 @@ export class AlphaBot {
       this.oneMinuteChart[this.oneMinuteChart.length - 1]
     );
     const timeAlive = await this.getTimeDifference(this.botConfig.startTime) // dont trade anything for first 15 minutes regardless of if there is a full chart history
-    if (this.fiveMinuteChart.length - 1 < 72 && +timeAlive.timeInMinutes <= 15) {
+    if (this.fiveMinuteChart.length - 1 < 72 && +timeAlive.timeInMinutes <= 5) {
       const percentageComplete = ((this.fiveMinuteChart.length - 1) / 72) * 100;
       console.log(
         `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete`
@@ -379,15 +379,12 @@ export class AlphaBot {
     tradeSignal.type = tradeDecision.tradeType
     // Only push 1 signal ever 15 minutes && only trade off 1 signal every 15 minutes
     const fifteenminuteInterval = (await this.getTimeDifference(this.botConfig.startTime)).timeInMinutes
+
     if ( +fifteenminuteInterval % 15) {
       this.signalTracker.push(`${tradeDecision.tradeSignal}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`,
       )
-      return tradeSignal
-    } else {
-      tradeSignal.type = TradingMode.hold
-      return tradeSignal
-    }
-    
+    } 
+    return tradeSignal
   }
 
 
