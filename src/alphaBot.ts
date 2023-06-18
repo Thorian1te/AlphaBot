@@ -175,7 +175,8 @@ export class AlphaBot {
       `Last Price: ${this.asset.chain} $`,
       this.oneMinuteChart[this.oneMinuteChart.length - 1]
     );
-    if (this.fiveMinuteChart.length - 1 < 72) {
+    const timeAlive = await this.getTimeDifference(this.botConfig.startTime) // dont trade anything for first 15 minutes regardless of if there is a full chart history
+    if (this.fiveMinuteChart.length - 1 < 72 && +timeAlive.timeInMinutes <= 15) {
       const percentageComplete = ((this.fiveMinuteChart.length - 1) / 72) * 100;
       console.log(
         `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete`
@@ -326,16 +327,19 @@ export class AlphaBot {
   }
 
   private async checkWalletBal(signal: Signal): Promise<TradingMode> {
+    const lastTradeTime = new Date(this.txRecords[this.txRecords.length - 1].date)
+    const tradeTimeDifference = await this.getTimeDifference(lastTradeTime) // add wait of 15 minutes before the next trade. 
     const bal = await this.getSynthBalance(); 
     const hasTxRecords = this.txRecords.length > 0;
     const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
     const lastAction = this.txRecords[this.txRecords.length -1].action
     console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
-    if (signal.type === TradingMode.buy && lastAction != 'buy') {
+    console.log(`last trade was: ${tradeTimeDifference.timeInMinutes} ago at price ${this.txRecords[this.txRecords.length - 1].assetPrice}`)
+    if (signal.type === TradingMode.buy && lastAction != 'buy' && +tradeTimeDifference.timeInMinutes >= 15) {
       console.log(`Spending: `, bal.sbusd.formatedAssetString());
       const decision = bal.sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
       return decision;
-    } else if (signal.type === TradingMode.sell && lastAction != 'sell' ) {
+    } else if (signal.type === TradingMode.sell && lastAction != 'sell' && +tradeTimeDifference.timeInMinutes >= 15) {
       console.log(`Spending: `, bal.sbtc.formatedAssetString());
       const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.sell : TradingMode.hold
       return decision;
