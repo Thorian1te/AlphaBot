@@ -176,7 +176,7 @@ export class AlphaBot {
       this.oneMinuteChart[this.oneMinuteChart.length - 1]
     );
     const timeAlive = await this.getTimeDifference(this.botConfig.startTime) // dont trade anything for first 15 minutes regardless of if there is a full chart history
-    if (this.fiveMinuteChart.length - 1 < 72 && +timeAlive.timeInMinutes <= 15) {
+    if (this.fiveMinuteChart.length - 1 < 72 && +timeAlive.timeInMinutes <= 5) {
       const percentageComplete = ((this.fiveMinuteChart.length - 1) / 72) * 100;
       console.log(
         `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete`
