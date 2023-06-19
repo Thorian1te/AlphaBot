@@ -88,6 +88,7 @@ export type Signal = {
     macd: Boolean
     rsi: Boolean
     histogram: Boolean
+    decision: string
 }
 
 export type SynthBalance = {
