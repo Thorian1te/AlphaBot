@@ -390,9 +390,9 @@ export class AlphaBot {
 
     const lastAction = this.txRecords[this.txRecords.length -1].action
     const lastPrice = this.txRecords[this.txRecords.length -1].assetPrice
-
+    const lastBuyPrice = lastAction == 'buy' ? lastPrice : undefined
     // analyse ema sma and psar & mcad 
-    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1], )
+    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1], lastBuyPrice )
     tradeSignal.decision = tradeDecision.tradeSignal
     tradeSignal.type = tradeDecision.tradeType
     return tradeSignal
