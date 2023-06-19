@@ -425,7 +425,7 @@ export class TradingIndicators {
         2
       )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
       trade.tradeType = TradingMode.buy;
-    } else if (lastPrice && (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <= -stopLossThreshold) {
+    } else if (lastBuy && (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <= -stopLossThreshold) {
       trade.tradeSignal = `Sell: Stop loss triggered (${stopLossThreshold}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
       trade.tradeType = TradingMode.sell;
     } else {
