@@ -159,30 +159,32 @@ export class AlphaBot {
   }
   private async injestTradingData(interval: string) {
     let market: TradingMode;
-    const macd = await this.tradingIndicators.getMacd(this.fifteenMinuteChart);
+    let signal: Signal;
+
     await this.tradingIndicators.getRsi(this.fifteenMinuteChart);
     await this.writeToFile(this.tradingIndicators.rsi, "rsi");
-    console.log(`Collecting trading signals for ${interval}`);
-    console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
-    let signal: Signal;
+
+
     if(this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date ) {
       if(this.txRecords.length < 1) this.txRecords.push(this.buyOrders.slice(-1)[0])
     } else {
       if(this.txRecords.length < 1) this.txRecords.push(this.sellOrders.slice(-1)[0])
     }
 
-    console.log(
-      `Last Price: ${this.asset.chain} $`,
-      this.oneMinuteChart[this.oneMinuteChart.length - 1]
-    );
-    const timeAlive = await this.getTimeDifference(this.botConfig.startTime) // dont trade anything for first 15 minutes regardless of if there is a full chart history
-    if (this.fiveMinuteChart.length - 1 < 72 && +timeAlive.timeInMinutes <= 5) {
+    const timeAlive = await this.getTimeDifference(this.botConfig.startTime) 
+    // dont trade anything for first 1 minutes regardless of if there is a full chart history
+    if (this.fiveMinuteChart.length - 1 < 72 || +timeAlive.timeInMinutes <= 1) {
       const percentageComplete = ((this.fiveMinuteChart.length - 1) / 72) * 100;
-      console.log(
-        `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete`
-      );
+      const log = percentageComplete > 100 ? `Collecting Data` : `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete`
+      console.log(log);
       return TradingMode.hold;
-    } else {
+    } else if(+timeAlive.timeInMinutes.toFixed() % 5 === 0) {
+      console.log(`Collecting trading signals for ${interval}`);
+      console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
+      console.log(
+        `Last Price: ${this.asset.chain} $`,
+        this.oneMinuteChart[this.oneMinuteChart.length - 1]
+      );
       const bal = await this.getSynthBalance();
       console.log(bal.sbtc.formatedAssetString());
       console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
@@ -191,8 +193,29 @@ export class AlphaBot {
       const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
       console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
       console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
-      signal = await this.signal(macd);
+      signal = await this.signal(this.fiveMinuteChart, 15);
       console.log(signal)
+      market = TradingMode.hold
+      await this.executeAction(market);
+
+    } else if (+timeAlive.timeInMinutes.toFixed() % 15 === 0){
+      console.log(`Collecting trading signals for ${interval}`);
+      console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
+      console.log(
+        `Last Price: ${this.asset.chain} $`,
+        this.oneMinuteChart[this.oneMinuteChart.length - 1]
+      );
+      const bal = await this.getSynthBalance();
+      console.log(bal.sbtc.formatedAssetString());
+      console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
+      console.log(bal.sbusd.formatedAssetString());
+      const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+      const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
+      console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
+      console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
+      signal = await this.signal(this.fifteenMinuteChart, 15);
+      console.log(signal)
+      this.signalTracker.push(`${signal.type}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
       market = await this.checkWalletBal(signal);
       await this.executeAction(market);
     }
@@ -352,18 +375,20 @@ export class AlphaBot {
     }
   }
   
-  private async signal(macdResult: MacdResult): Promise<Signal> {
+  private async signal(chart: number[], interval: number): Promise<Signal> {
     let tradeSignal: Signal = {
       type: TradingMode.hold,
       macd: false,
       rsi: false,
       histogram: false
     };
-    // period being passed in is 3 hours
-    tradeSignal.histogram = macdResult.histogram[macdResult.histogram.length -1] > 0 ? true : false
 
-    const sma = await this.tradingIndicators.getSma(this.fifteenMinuteChart, 15);
-    const ema = await this.tradingIndicators.getEma(this.fifteenMinuteChart, 15);
+    const macd = await this.tradingIndicators.getMacd(chart);
+    // period being passed in is 3 hours
+    tradeSignal.histogram = macd.histogram[macd.histogram.length -1] > 0 ? true : false
+
+    const sma = await this.tradingIndicators.getSma(chart, interval);
+    const ema = await this.tradingIndicators.getEma(chart, interval);
     const highLowPastFifteenMinutes = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart.slice(-1080), 15);
     const highLowPastThreeHours = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart.slice(-180), 180)
     console.log(`Past three hours \nHigh ${highLowPastThreeHours.high} \nLow ${highLowPastThreeHours.low}`)
@@ -374,16 +399,9 @@ export class AlphaBot {
     console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
 
     // analyse ema sma and psar & mcad 
-    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macdResult.macdLine, macdResult.signalLine, 2, this.fifteenMinuteChart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1])
+    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1])
 
     tradeSignal.type = tradeDecision.tradeType
-    // Only push 1 signal ever 15 minutes && only trade off 1 signal every 15 minutes
-    const fifteenminuteInterval = (await this.getTimeDifference(this.botConfig.startTime)).timeInMinutes
-
-    if ( +fifteenminuteInterval % 15) {
-      this.signalTracker.push(`${tradeDecision.tradeSignal}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`,
-      )
-    } 
     return tradeSignal
   }
 
