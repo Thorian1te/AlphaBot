@@ -342,7 +342,7 @@ export class TradingIndicators {
     }
   }
 
-  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[], lastPrice: number): Promise<TradeAnalysis> {
+  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[], lastPrice: number, lastBuy?: number): Promise<TradeAnalysis> {
     let trade: TradeAnalysis = {
       tradeSignal: "",
       tradeType: TradingMode.hold,
@@ -351,6 +351,7 @@ export class TradingIndicators {
     let bearishPeriods = 0; 
     const priceJumpThreshold = 5 // percentage change
     const priceDropThreshold = 5 // percentage cahnge
+    const stopLossThreshold = 1
     const previousPrice = fifteenMinuteChart[fifteenMinuteChart.length -1]
     const percentageChange = ((lastPrice - previousPrice) / previousPrice) * 100;
 
@@ -414,17 +415,24 @@ export class TradingIndicators {
     } else if (isFlashBuySignal) {
       trade.tradeSignal = "Buy: Flash buy signal";
       trade.tradeType = TradingMode.buy;
-    } else if (percentageChange >= priceJumpThreshold) {
-      trade.tradeSignal = `Sell: Sudden price jump detected (${percentageChange.toFixed(2)}% increase), Last price: BTC $${lastPrice.toFixed(2)}`;
+    }  else if (percentageChange >= priceJumpThreshold && this.rsi[this.rsi.length -1] >= 70) {
+      trade.tradeSignal = `Sell: Sudden price jump detected (${percentageChange.toFixed(
+        2
+      )}% increase), Last price: BTC $${lastPrice.toFixed(2)}`;
       trade.tradeType = TradingMode.sell;
-    } else if (percentageChange <= -priceDropThreshold) {
-      trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(2)}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+    } else if (percentageChange <= -priceDropThreshold && this.rsi[this.rsi.length -1] <= 30) {
+      trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(
+        2
+      )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
       trade.tradeType = TradingMode.buy;
-    }else {
+    } else if (lastPrice && (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <= -stopLossThreshold) {
+      trade.tradeSignal = `Sell: Stop loss triggered (${stopLossThreshold}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+      trade.tradeType = TradingMode.sell;
+    } else {
       trade.tradeSignal = "No clear trading signal";
       trade.tradeType = TradingMode.hold;
     }
-    console.log(trade.tradeSignal);
+    console.log(trade.tradeSignal, this.rsi[this.rsi.length -1]);
     return trade;
   }
 }

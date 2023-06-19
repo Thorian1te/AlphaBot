@@ -369,7 +369,8 @@ export class AlphaBot {
       type: TradingMode.hold,
       macd: false,
       rsi: false,
-      histogram: false
+      histogram: false,
+      decision: '',
     };
 
     const macd = await this.tradingIndicators.getMacd(chart);
@@ -387,9 +388,12 @@ export class AlphaBot {
     const percentageGained = this.percentageChangeFromTrade()
     console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
 
-    // analyse ema sma and psar & mcad 
-    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1])
+    const lastAction = this.txRecords[this.txRecords.length -1].action
+    const lastPrice = this.txRecords[this.txRecords.length -1].assetPrice
 
+    // analyse ema sma and psar & mcad 
+    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1], )
+    tradeSignal.decision = tradeDecision.tradeSignal
     tradeSignal.type = tradeDecision.tradeType
     return tradeSignal
   }
