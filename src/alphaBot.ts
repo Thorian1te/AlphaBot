@@ -175,29 +175,9 @@ export class AlphaBot {
     // dont trade anything for first 1 minutes regardless of if there is a full chart history
     if (this.fiveMinuteChart.length - 1 < 72 || +timeAlive.timeInMinutes <= 1) {
       const percentageComplete = ((this.fiveMinuteChart.length - 1) / 72) * 100;
-      const log = percentageComplete > 100 ? `Collecting Data` : `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete`
+      const log = percentageComplete > 100 ? `Collecting Data, $ ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}` : `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete`
       console.log(log);
-      return TradingMode.hold;
-    } else if(+timeAlive.timeInMinutes.toFixed() % 5 === 0) {
-      console.log(`Collecting trading signals for ${interval}`);
-      console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
-      console.log(
-        `Last Price: ${this.asset.chain} $`,
-        this.oneMinuteChart[this.oneMinuteChart.length - 1]
-      );
-      const bal = await this.getSynthBalance();
-      console.log(bal.sbtc.formatedAssetString());
-      console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
-      console.log(bal.sbusd.formatedAssetString());
-      const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
-      const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
-      console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
-      console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
-      signal = await this.signal(this.fiveMinuteChart, 15);
-      console.log(signal)
-      market = TradingMode.hold
-      await this.executeAction(market);
-
+      await this.executeAction(TradingMode.hold)
     } else if (+timeAlive.timeInMinutes.toFixed() % 15 === 0){
       console.log(`Collecting trading signals for ${interval}`);
       console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
@@ -218,6 +198,15 @@ export class AlphaBot {
       this.signalTracker.push(`${signal.type}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
       market = await this.checkWalletBal(signal);
       await this.executeAction(market);
+    } else {
+      console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
+      console.log(
+        `Last Price: ${this.asset.chain} $`,
+        this.oneMinuteChart[this.oneMinuteChart.length - 1]
+      );
+      signal = await this.signal(this.fiveMinuteChart, 5);
+      console.log(signal)
+      await this.executeAction(TradingMode.hold)
     }
   }
   // ----------------------------------- Data collection for intervals -------------------------------
