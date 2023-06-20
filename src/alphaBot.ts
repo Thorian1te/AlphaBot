@@ -194,8 +194,8 @@ export class AlphaBot {
       console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
       console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
       signal = await this.signal(this.fifteenMinuteChart, 15);
-      console.log(signal)
-      this.signalTracker.push(`${signal.type}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+      console.log(signal.decision)
+      this.signalTracker.push(`${signal.decision}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
       market = await this.checkWalletBal(signal);
       await this.executeAction(market);
     } else {
@@ -391,6 +391,8 @@ export class AlphaBot {
     const lastAction = this.txRecords[this.txRecords.length -1].action
     const lastPrice = this.txRecords[this.txRecords.length -1].assetPrice
     const lastBuyPrice = lastAction == 'buy' ? lastPrice : undefined
+
+    console.log(lastBuyPrice)
     // analyse ema sma and psar & mcad 
     const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1], lastBuyPrice )
     tradeSignal.decision = tradeDecision.tradeSignal
