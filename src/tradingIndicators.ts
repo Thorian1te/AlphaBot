@@ -405,11 +405,11 @@ export class TradingIndicators {
       trade.tradeType = TradingMode.sell;
     } else if (psar[psar.length - 1] > resistanceLevel) {
       trade.tradeSignal = "hold: Price approaching resistance level";
-      trade.tradeType = TradingMode.hold;
+      trade.tradeType = TradingMode.buy;
     } else if (psar[psar.length - 1] < supportLevel) {
       trade.tradeSignal = "hold: Price approaching support level";
-      trade.tradeType = TradingMode.hold;
-    } else if (isFlashSellSignal) {
+      trade.tradeType = TradingMode.sell;
+    }  else if (isFlashSellSignal) {
       trade.tradeSignal = "Sell: Flash sell signal";
       trade.tradeType = TradingMode.sell;
     } else if (isFlashBuySignal) {

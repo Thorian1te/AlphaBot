@@ -204,8 +204,8 @@ export class AlphaBot {
         `Last Price: ${this.asset.chain} $`,
         this.oneMinuteChart[this.oneMinuteChart.length - 1]
       );
-      signal = await this.signal(this.fiveMinuteChart, 5);
-      console.log(signal)
+      signal = await this.signal(this.fifteenMinuteChart, 5);
+      console.log(`Fifteen minute chart signal ${signal.decision}`)
       await this.executeAction(TradingMode.hold)
     }
   }
@@ -392,7 +392,7 @@ export class AlphaBot {
     const lastPrice = this.txRecords[this.txRecords.length -1].assetPrice
     const lastBuyPrice = lastAction == 'buy' ? lastPrice : undefined
 
-    console.log(lastBuyPrice)
+    console.log(`last trade ${lastAction}, ${lastPrice}`)
     // analyse ema sma and psar & mcad 
     const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1], lastBuyPrice )
     tradeSignal.decision = tradeDecision.tradeSignal
