@@ -337,11 +337,11 @@ export class AlphaBot {
     const lastAction = this.txRecords[this.txRecords.length -1].action
     console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
     console.log(`last trade was: ${tradeTimeDifference.timeInMinutes} ago at price ${this.txRecords[this.txRecords.length - 1].assetPrice}`)
-    if (signal.type === TradingMode.buy && lastAction != 'buy' && +tradeTimeDifference.timeInMinutes >= 5) {
+    if (signal.type === TradingMode.buy && lastAction != 'buy' && +tradeTimeDifference.timeInMinutes >= 15) {
       console.log(`Spending: `, bal.sbusd.formatedAssetString());
       const decision = bal.sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
       return decision;
-    } else if (signal.type === TradingMode.sell && lastAction != 'sell' && +tradeTimeDifference.timeInMinutes >= 5) {
+    } else if (signal.type === TradingMode.sell && lastAction != 'sell' && +tradeTimeDifference.timeInMinutes >= 15) {
       console.log(`Spending: `, bal.sbtc.formatedAssetString());
       const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.sell : TradingMode.hold
       return decision;
