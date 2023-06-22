@@ -319,21 +319,21 @@ export class TradingIndicators {
   public async detectTop(prices: number[], reversalThreshold: number) {
     let highestPrice = -Infinity;
     let highestIndex = -1;
-    let previousHighestPrice = -Infinity;
-    let previousHighestIndex = -1;
+    let previousPrice = -Infinity;
+    let previousIndex = -1;
     let isTrendReversal = false;
-  
+    
     for (let i = prices.length - 1; i >= prices.length - 30; i--) {
       if (prices[i] > highestPrice) {
-        previousHighestPrice = highestPrice;
-        previousHighestIndex = highestIndex;
+        previousPrice = highestPrice;
+        previousIndex = highestIndex;
         highestPrice = prices[i];
         highestIndex = i;
-  
+        
         // Check for trend reversal or significant price change
         if (
-          previousHighestIndex >= 0 &&
-          (highestPrice - previousHighestPrice) / previousHighestPrice >= reversalThreshold
+          previousIndex >= 0 &&
+          (highestPrice - previousPrice) / previousPrice >= reversalThreshold
         ) {
           isTrendReversal = true;
         } else {
@@ -341,7 +341,7 @@ export class TradingIndicators {
         }
       }
     }
-  
+    
     return {
       price: highestPrice,
       index: highestIndex,
@@ -352,21 +352,21 @@ export class TradingIndicators {
   public async detectBottom(prices: number[], reversalThreshold: number) {
     let lowestPrice = Infinity;
     let lowestIndex = -1;
-    let previousLowestPrice = Infinity;
-    let previousLowestIndex = -1;
+    let previousPrice = Infinity;
+    let previousIndex = -1;
     let isTrendReversal = false;
-  
+    
     for (let i = prices.length - 1; i >= prices.length - 30; i--) {
       if (prices[i] < lowestPrice) {
-        previousLowestPrice = lowestPrice;
-        previousLowestIndex = lowestIndex;
+        previousPrice = lowestPrice;
+        previousIndex = lowestIndex;
         lowestPrice = prices[i];
         lowestIndex = i;
-  
+        
         // Check for trend reversal or significant price change
         if (
-          previousLowestIndex >= 0 &&
-          (previousLowestPrice - lowestPrice) / previousLowestPrice >= reversalThreshold
+          previousIndex >= 0 &&
+          (previousPrice - lowestPrice) / previousPrice >= reversalThreshold
         ) {
           isTrendReversal = true;
         } else {
@@ -374,13 +374,13 @@ export class TradingIndicators {
         }
       }
     }
-  
+    
     return {
       price: lowestPrice,
       index: lowestIndex,
       isTrendReversal: isTrendReversal
     };
-  }
+  }  
   
   
 

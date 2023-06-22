@@ -374,13 +374,15 @@ export class AlphaBot {
     console.log(`Past three hours \nHigh ${highLowPastThreeHours.high} \nLow ${highLowPastThreeHours.low}`)
     const psar = await this.tradingIndicators.getParabolicSar(highLowPastFifteenMinutes.high, highLowPastFifteenMinutes.low, this.fifteenMinuteChart.slice(-72));
 
-    // Check percentage gained 
-    const percentageGained = this.percentageChangeFromTrade()
-    console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
 
     const lastAction = this.txRecords[this.txRecords.length -1].action
     const lastTradePrice = this.txRecords[this.txRecords.length -1].assetPrice
   
+    // Check percentage gained 
+    const percentageGained = this.percentageChangeFromTrade(lastAction, lastTradePrice)
+    console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
+
+
     console.log(`last trade ${lastAction}, ${lastTradePrice}`)
     // analyse ema sma and psar & mcad 
     const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart, lastAction, lastTradePrice,  )
@@ -389,22 +391,29 @@ export class AlphaBot {
     return tradeSignal
   }
 
-
-  private percentageChangeFromTrade(): number {
+  private percentageChangeFromTrade(lastTradeAction: string, lastTradePrice: number): { percentageChange: number; direction: string } {
     if (this.txRecords.length === 0) {
       throw new Error("No buy orders available");
     }
   
-    const lastTradePrice = this.txRecords[0].assetPrice;
     const assetPrice = +this.oneMinuteChart.slice(-1)[0];
     if (isNaN(assetPrice)) {
       throw new Error("Invalid asset price");
     }
   
     const percentageChange = ((assetPrice - lastTradePrice) / lastTradePrice);
-    return percentageChange;
-  }
+    let direction = "";
   
+    if (lastTradeAction === "buy") {
+      direction = percentageChange >= 0 ? "positive" : "negative";
+    } else if (lastTradeAction === "sell") {
+      direction = percentageChange <= 0 ? "positive" : "negative";
+    } else {
+      throw new Error("Invalid last trade action");
+    }
+  
+    return { percentageChange, direction };
+  }
 
   // ---------------------------- file sync ---------------------------------
   /**
