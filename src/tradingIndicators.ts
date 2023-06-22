@@ -439,7 +439,7 @@ export class TradingIndicators {
     switch (lastTrade) {
       case 'sell':
         const detectBottom = await this.detectBottom(oneMinuteChart, 0.001)
-        console.log(`Looking for a buy`)
+        console.log(`Looking for a buy, Support level ${supportLevel}`)
         console.log(detectBottom)
         if (isBullishConditionMet) {
           trade.tradeSignal = "Buy: Trend is consistently bullish";
@@ -447,10 +447,7 @@ export class TradingIndicators {
         } else if (isBullishCrossover && percentageChange >= priceJumpThreshold) {
           trade.tradeSignal = "Buy: PSAR crossed above EMA";
           trade.tradeType = TradingMode.buy;
-        } else if (detectBottom.isTrendReversal) {
-          trade.tradeSignal = "buy: Price approaching resistance level and bottom detected";
-          trade.tradeType = TradingMode.buy;
-        } else if (isFlashBuySignal) {
+        }  else if (isFlashBuySignal) {
           trade.tradeSignal = "Buy: Flash buy signal";
           trade.tradeType = TradingMode.buy;
         } else if (percentageChange >= priceJumpThreshold && this.rsi[this.rsi.length -1] >= 70) {
@@ -459,6 +456,9 @@ export class TradingIndicators {
         } else if (lastBuy && (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <= -stopLossThreshold) {
           trade.tradeSignal = `Sell: Stop loss triggered (${stopLossThreshold}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.sell;
+        } else if (detectBottom.isTrendReversal) {
+          trade.tradeSignal = "buy: Price approaching resistance level and bottom detected";
+          trade.tradeType = TradingMode.buy;
         } else {
           trade.tradeSignal = "No clear trading signal";
           trade.tradeType = TradingMode.hold;
@@ -468,7 +468,7 @@ export class TradingIndicators {
     
       case 'buy':
         const detectTop = await this.detectTop(oneMinuteChart, 0.001)
-        console.log(`Looking for a Sell`)
+        console.log(`Looking for a Sell, resistance level ${resistanceLevel}`)
         console.log(detectTop)
         if (isBearishConditionMet) {
           trade.tradeSignal = "Sell: Trend is consistently bearish";
@@ -476,15 +476,15 @@ export class TradingIndicators {
         } else if (isBearishCrossover && percentageChange >= -priceDropThreshold) {
           trade.tradeSignal = "Sell: PSAR crossed below EMA";
           trade.tradeType = TradingMode.sell;
-        } else if (detectTop.isTrendReversal) {
-          trade.tradeSignal = "sell: Price approaching support level and top detected";
-          trade.tradeType = TradingMode.sell;
         } else if (isFlashSellSignal) {
           trade.tradeSignal = "Sell: Flash sell signal";
           trade.tradeType = TradingMode.sell;
         } else if (percentageChange <= -priceDropThreshold && this.rsi[this.rsi.length -1] <= 30) {
           trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(2)}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
+        } else if (detectTop.isTrendReversal) {
+          trade.tradeSignal = "sell: Price approaching support level and top detected";
+          trade.tradeType = TradingMode.sell;
         } else {
           trade.tradeSignal = "No clear trading signal";
           trade.tradeType = TradingMode.hold;
