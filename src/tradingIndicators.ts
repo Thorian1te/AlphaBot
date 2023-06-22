@@ -323,12 +323,13 @@ export class TradingIndicators {
     let previousHighestIndex = -1;
     let isTrendReversal = false;
   
-    for (let i = prices.length - 30; i < prices.length; i++) {
+    for (let i = prices.length - 1; i >= prices.length - 30; i--) {
       if (prices[i] > highestPrice) {
         previousHighestPrice = highestPrice;
         previousHighestIndex = highestIndex;
         highestPrice = prices[i];
         highestIndex = i;
+  
         // Check for trend reversal or significant price change
         if (
           previousHighestIndex >= 0 &&
@@ -348,7 +349,6 @@ export class TradingIndicators {
     };
   }
   
-
   public async detectBottom(prices: number[], reversalThreshold: number) {
     let lowestPrice = Infinity;
     let lowestIndex = -1;
@@ -356,12 +356,13 @@ export class TradingIndicators {
     let previousLowestIndex = -1;
     let isTrendReversal = false;
   
-    for (let i = prices.length - 30; i < prices.length; i++) {
+    for (let i = prices.length - 1; i >= prices.length - 30; i--) {
       if (prices[i] < lowestPrice) {
         previousLowestPrice = lowestPrice;
         previousLowestIndex = lowestIndex;
         lowestPrice = prices[i];
         lowestIndex = i;
+  
         // Check for trend reversal or significant price change
         if (
           previousLowestIndex >= 0 &&
@@ -380,6 +381,7 @@ export class TradingIndicators {
       isTrendReversal: isTrendReversal
     };
   }
+  
   
 
   public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[], oneMinuteChart: number[], lastTrade: string, lastBuy?: number ): Promise<TradeAnalysis> {
@@ -432,11 +434,13 @@ export class TradingIndicators {
     const isBullishConditionMet = bullishPeriods >= trendWeight;
     const isBearishConditionMet = bearishPeriods >= trendWeight;
 
-    const detectTop = await this.detectTop(oneMinuteChart, 0.01)
-    const detectBottom = await this.detectBottom(oneMinuteChart, 0.01)
+    
+    
     switch (lastTrade) {
       case 'sell':
-        console.log(detectTop)
+        const detectBottom = await this.detectBottom(oneMinuteChart, 0.001)
+        console.log(`Looking for a buy`)
+        console.log(detectBottom)
         if (isBullishConditionMet) {
           trade.tradeSignal = "Buy: Trend is consistently bullish";
           trade.tradeType = TradingMode.buy;
@@ -463,7 +467,9 @@ export class TradingIndicators {
         return trade;
     
       case 'buy':
-        console.log(detectBottom)
+        const detectTop = await this.detectTop(oneMinuteChart, 0.001)
+        console.log(`Looking for a Sell`)
+        console.log(detectTop)
         if (isBearishConditionMet) {
           trade.tradeSignal = "Sell: Trend is consistently bearish";
           trade.tradeType = TradingMode.sell;

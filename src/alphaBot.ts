@@ -193,8 +193,7 @@ export class AlphaBot {
       const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
       console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
       console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
-      signal = await this.signal(this.fiveMinuteChart, 5);
-      console.log(signal.decision)
+      signal = await this.signal(this.fifteenMinuteChart, 15);
       this.signalTracker.push(`${signal.decision}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
       market = await this.checkWalletBal(signal);
       await this.executeAction(market);
