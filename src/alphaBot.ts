@@ -178,7 +178,7 @@ export class AlphaBot {
       const log = percentageComplete > 100 ? `Collecting Data, $ ${this.oneMinuteChart[this.oneMinuteChart.length - 1]}` : `Alphabot is waiting for data maturity: ${percentageComplete.toFixed()} % complete`
       console.log(log);
       await this.executeAction(TradingMode.hold)
-    } else if (+timeAlive.timeInMinutes.toFixed() % 15 === 0){
+    } else {
       console.log(`Collecting trading signals for ${interval}`);
       console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
       console.log(
@@ -193,21 +193,12 @@ export class AlphaBot {
       const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
       console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
       console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
-      signal = await this.signal(this.fifteenMinuteChart, 15);
+      signal = await this.signal(this.fiveMinuteChart, 5);
       console.log(signal.decision)
       this.signalTracker.push(`${signal.decision}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
       market = await this.checkWalletBal(signal);
       await this.executeAction(market);
-    } else {
-      console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
-      console.log(
-        `Last Price: ${this.asset.chain} $`,
-        this.oneMinuteChart[this.oneMinuteChart.length - 1]
-      );
-      signal = await this.signal(this.fifteenMinuteChart, 5);
-      console.log(`Fifteen minute chart signal ${signal.decision}`)
-      await this.executeAction(TradingMode.hold)
-    }
+    } 
   }
   // ----------------------------------- Data collection for intervals -------------------------------
   public async dataCollectionMinute(start: Boolean, interval: ChartInterval) {
@@ -347,11 +338,11 @@ export class AlphaBot {
     const lastAction = this.txRecords[this.txRecords.length -1].action
     console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
     console.log(`last trade was: ${tradeTimeDifference.timeInMinutes} ago at price ${this.txRecords[this.txRecords.length - 1].assetPrice}`)
-    if (signal.type === TradingMode.buy && lastAction != 'buy' && +tradeTimeDifference.timeInMinutes >= 15) {
+    if (signal.type === TradingMode.buy && lastAction != 'buy' && +tradeTimeDifference.timeInMinutes >= 5) {
       console.log(`Spending: `, bal.sbusd.formatedAssetString());
       const decision = bal.sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
       return decision;
-    } else if (signal.type === TradingMode.sell && lastAction != 'sell' && +tradeTimeDifference.timeInMinutes >= 15) {
+    } else if (signal.type === TradingMode.sell && lastAction != 'sell' && +tradeTimeDifference.timeInMinutes >= 5) {
       console.log(`Spending: `, bal.sbtc.formatedAssetString());
       const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.sell : TradingMode.hold
       return decision;
@@ -389,12 +380,11 @@ export class AlphaBot {
     console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
 
     const lastAction = this.txRecords[this.txRecords.length -1].action
-    const lastPrice = this.txRecords[this.txRecords.length -1].assetPrice
-    const lastBuyPrice = lastAction == 'buy' ? lastPrice : undefined
-
-    console.log(`last trade ${lastAction}, ${lastPrice}`)
+    const lastTradePrice = this.txRecords[this.txRecords.length -1].assetPrice
+  
+    console.log(`last trade ${lastAction}, ${lastTradePrice}`)
     // analyse ema sma and psar & mcad 
-    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart[this.oneMinuteChart.length -1], lastBuyPrice )
+    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart, lastAction, lastTradePrice,  )
     tradeSignal.decision = tradeDecision.tradeSignal
     tradeSignal.type = tradeDecision.tradeType
     return tradeSignal
