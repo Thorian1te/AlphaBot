@@ -1,5 +1,5 @@
 import {ema, macd , rsi, sma, parabolicSar} from "indicatorts";
-import { HighAndLow, MacdResult, ParabolicSar, TradeAnalysis, TradingMode } from "./types";
+import { HighAndLow, MacdResult, ParabolicSar, TradeAnalysis, TradingMode, TxDetail } from "./types";
 
 export class TradingIndicators {
 
@@ -316,7 +316,7 @@ export class TradingIndicators {
     return highAndLowArray;
   }
 
-  public async detectTop(prices: number[], reversalThreshold: number) {
+  public detectTop(prices: number[], reversalThreshold: number) {
     let highestPrice = -Infinity;
     let highestIndex = -1;
     let previousPrice = -Infinity;
@@ -349,7 +349,7 @@ export class TradingIndicators {
     };
   }
   
-  public async detectBottom(prices: number[], reversalThreshold: number) {
+  public detectBottom(prices: number[], reversalThreshold: number) {
     let lowestPrice = Infinity;
     let lowestIndex = -1;
     let previousPrice = Infinity;
@@ -384,11 +384,18 @@ export class TradingIndicators {
   
   
 
-  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[], oneMinuteChart: number[], lastTrade: string, lastBuy?: number ): Promise<TradeAnalysis> {
+  public analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[], oneMinuteChart: number[], lastTrade: TxDetail ): TradeAnalysis {
     let trade: TradeAnalysis = {
       tradeSignal: "",
       tradeType: TradingMode.hold,
     };
+
+    // Last trade 
+    const lastAction = lastTrade.action
+    const lastTradePrice = lastTrade.assetPrice
+    const lastBuy = lastAction === 'buy' ? lastTradePrice : undefined
+    const lastTradeTime = new Date(lastTrade.date)
+
     let bullishPeriods = 0;
     let bearishPeriods = 0; 
     const priceJumpThreshold = 5 // percentage change
@@ -436,9 +443,9 @@ export class TradingIndicators {
 
     
     
-    switch (lastTrade) {
+    switch (lastAction) {
       case 'sell':
-        const detectBottom = await this.detectBottom(oneMinuteChart, 0.001)
+        const detectBottom = this.detectBottom(oneMinuteChart, 0.001)
         console.log(`Looking for a buy, Support level ${supportLevel}`)
         console.log(detectBottom)
         if (isBullishConditionMet) {
@@ -450,16 +457,16 @@ export class TradingIndicators {
         }  else if (isFlashBuySignal) {
           trade.tradeSignal = "Buy: Flash buy signal";
           trade.tradeType = TradingMode.buy;
-        } else if (percentageChange >= priceJumpThreshold && this.rsi[this.rsi.length -1] >= 70) {
-          trade.tradeSignal = `Sell: Sudden price jump detected (${percentageChange.toFixed(2)}% increase), Last price: BTC $${lastPrice.toFixed(2)}`;
-          trade.tradeType = TradingMode.sell;
-        } else if (lastBuy && (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <= -stopLossThreshold) {
-          trade.tradeSignal = `Sell: Stop loss triggered (${stopLossThreshold}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
-          trade.tradeType = TradingMode.sell;
-        } else if (detectBottom.isTrendReversal) {
-          trade.tradeSignal = "buy: Price approaching resistance level and bottom detected";
+        } else if (percentageChange <= -priceDropThreshold && this.rsi[this.rsi.length -1] <= 30) {
+          trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(2)}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
-        } else {
+        }  else if (detectBottom.isTrendReversal && supportLevel) {
+          trade.tradeSignal = "buy: Price approaching support level and bottom detected";
+          trade.tradeType = TradingMode.buy;
+        } else if (detectBottom.index === 1066 ) {
+          trade.tradeSignal = "Sell: bottom has been in for > 10 minutes "
+          trade.tradeType = TradingMode.sell
+        }else {
           trade.tradeSignal = "No clear trading signal";
           trade.tradeType = TradingMode.hold;
         }
@@ -467,7 +474,7 @@ export class TradingIndicators {
         return trade;
     
       case 'buy':
-        const detectTop = await this.detectTop(oneMinuteChart, 0.001)
+        const detectTop = this.detectTop(oneMinuteChart, 0.001)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel}`)
         console.log(detectTop)
         if (isBearishConditionMet) {
@@ -479,12 +486,18 @@ export class TradingIndicators {
         } else if (isFlashSellSignal) {
           trade.tradeSignal = "Sell: Flash sell signal";
           trade.tradeType = TradingMode.sell;
-        } else if (percentageChange <= -priceDropThreshold && this.rsi[this.rsi.length -1] <= 30) {
-          trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(2)}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
-          trade.tradeType = TradingMode.buy;
-        } else if (detectTop.isTrendReversal) {
+        }else if (percentageChange >= priceJumpThreshold && this.rsi[this.rsi.length -1] >= 70) {
+          trade.tradeSignal = `Sell: Sudden price jump detected (${percentageChange.toFixed(2)}% increase), Last price: BTC $${lastPrice.toFixed(2)}`;
+          trade.tradeType = TradingMode.sell;
+        } else if (lastBuy && (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <= -stopLossThreshold) {
+          trade.tradeSignal = `Sell: Stop loss triggered (${stopLossThreshold}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+          trade.tradeType = TradingMode.sell;
+        }  else if (detectTop.isTrendReversal) {
           trade.tradeSignal = "sell: Price approaching support level and top detected";
           trade.tradeType = TradingMode.sell;
+        } else if (detectTop.index === 1066 ) {
+          trade.tradeSignal = "Sell: top has been in for > 10 minutes "
+          trade.tradeType = TradingMode.sell
         } else {
           trade.tradeSignal = "No clear trading signal";
           trade.tradeType = TradingMode.hold;
@@ -493,4 +506,5 @@ export class TradingIndicators {
         return trade;
     }
   }
+
 }

@@ -374,18 +374,18 @@ export class AlphaBot {
     console.log(`Past three hours \nHigh ${highLowPastThreeHours.high} \nLow ${highLowPastThreeHours.low}`)
     const psar = await this.tradingIndicators.getParabolicSar(highLowPastFifteenMinutes.high, highLowPastFifteenMinutes.low, this.fifteenMinuteChart.slice(-72));
 
-
+    const lastTrade = this.txRecords[this.txRecords.length -1]
     const lastAction = this.txRecords[this.txRecords.length -1].action
     const lastTradePrice = this.txRecords[this.txRecords.length -1].assetPrice
   
     // Check percentage gained 
     const percentageGained = this.percentageChangeFromTrade(lastAction, lastTradePrice)
-    console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained}`)
+    console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained.percentageChange}`)
 
 
     console.log(`last trade ${lastAction}, ${lastTradePrice}`)
     // analyse ema sma and psar & mcad 
-    const tradeDecision = await this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart, lastAction, lastTradePrice,  )
+    const tradeDecision = this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, psar.trends, this.oneMinuteChart, lastTrade )
     tradeSignal.decision = tradeDecision.tradeSignal
     tradeSignal.type = tradeDecision.tradeType
     return tradeSignal
