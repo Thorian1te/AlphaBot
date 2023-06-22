@@ -316,33 +316,73 @@ export class TradingIndicators {
     return highAndLowArray;
   }
 
-  /**
-   *
-   * @param values
-   * @returns - direction of values based on period
-   */
-  public async valueDirection(
-    values: number[],
-    period: number,
-    name: string
-  ): Promise<string> {
-    let sumRateOfChange = 0;
-    let sortArray = values.slice(-period);
-    for (let i = 1; i < sortArray.length; i++) {
-      const rateOfChange = (sortArray[i] - sortArray[i - 1]) / sortArray[i - 1];
-      sumRateOfChange += rateOfChange;
+  public async detectTop(prices: number[], reversalThreshold: number) {
+    let highestPrice = -Infinity;
+    let highestIndex = -1;
+    let previousHighestPrice = -Infinity;
+    let previousHighestIndex = -1;
+    let isTrendReversal = false;
+  
+    for (let i = prices.length - 30; i < prices.length; i++) {
+      if (prices[i] > highestPrice) {
+        previousHighestPrice = highestPrice;
+        previousHighestIndex = highestIndex;
+        highestPrice = prices[i];
+        highestIndex = i;
+        // Check for trend reversal or significant price change
+        if (
+          previousHighestIndex >= 0 &&
+          (highestPrice - previousHighestPrice) / previousHighestPrice >= reversalThreshold
+        ) {
+          isTrendReversal = true;
+        } else {
+          isTrendReversal = false;
+        }
+      }
     }
-    const averageRateOfChange = sumRateOfChange / (sortArray.length - 1);
-    if (averageRateOfChange < 0) {
-      return "Negative";
-    } else if (averageRateOfChange > 0) {
-      return "Positive";
-    } else {
-      return "No Change";
-    }
+  
+    return {
+      price: highestPrice,
+      index: highestIndex,
+      isTrendReversal: isTrendReversal
+    };
   }
+  
 
-  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[], lastPrice: number, lastBuy?: number): Promise<TradeAnalysis> {
+  public async detectBottom(prices: number[], reversalThreshold: number) {
+    let lowestPrice = Infinity;
+    let lowestIndex = -1;
+    let previousLowestPrice = Infinity;
+    let previousLowestIndex = -1;
+    let isTrendReversal = false;
+  
+    for (let i = prices.length - 30; i < prices.length; i++) {
+      if (prices[i] < lowestPrice) {
+        previousLowestPrice = lowestPrice;
+        previousLowestIndex = lowestIndex;
+        lowestPrice = prices[i];
+        lowestIndex = i;
+        // Check for trend reversal or significant price change
+        if (
+          previousLowestIndex >= 0 &&
+          (previousLowestPrice - lowestPrice) / previousLowestPrice >= reversalThreshold
+        ) {
+          isTrendReversal = true;
+        } else {
+          isTrendReversal = false;
+        }
+      }
+    }
+  
+    return {
+      price: lowestPrice,
+      index: lowestIndex,
+      isTrendReversal: isTrendReversal
+    };
+  }
+  
+
+  public async analyzeTradingSignals(psar: number[], sma: number[], ema: number[], macdLine: number[], signalLine: number[], trendWeight: number, fifteenMinuteChart: number[], trends: number[], oneMinuteChart: number[], lastTrade: string, lastBuy?: number ): Promise<TradeAnalysis> {
     let trade: TradeAnalysis = {
       tradeSignal: "",
       tradeType: TradingMode.hold,
@@ -353,6 +393,7 @@ export class TradingIndicators {
     const priceDropThreshold = 5 // percentage cahnge
     const stopLossThreshold = 1
     const previousPrice = fifteenMinuteChart[fifteenMinuteChart.length -1]
+    const lastPrice = oneMinuteChart[oneMinuteChart.length -1]
     const percentageChange = ((lastPrice - previousPrice) / previousPrice) * 100;
 
     // Confirm trend direction
@@ -390,49 +431,60 @@ export class TradingIndicators {
   
     const isBullishConditionMet = bullishPeriods >= trendWeight;
     const isBearishConditionMet = bearishPeriods >= trendWeight;
-  
-    if (isBullishConditionMet) {
-      trade.tradeSignal = "Buy: Trend is consistently bullish";
-      trade.tradeType = TradingMode.buy;
-    } else if (isBearishConditionMet) {
-      trade.tradeSignal = "Sell: Trend is consistently bearish";
-      trade.tradeType = TradingMode.sell;
-    } else if (isBullishCrossover && percentageChange >= priceJumpThreshold) {
-      trade.tradeSignal = "Buy: PSAR crossed above EMA";
-      trade.tradeType = TradingMode.buy;
-    } else if (isBearishCrossover && percentageChange >= -priceDropThreshold) {
-      trade.tradeSignal = "Sell: PSAR crossed below EMA";
-      trade.tradeType = TradingMode.sell;
-    } else if (psar[psar.length - 1] > resistanceLevel) {
-      trade.tradeSignal = "buy: Price approaching resistance level";
-      trade.tradeType = TradingMode.buy;
-    } else if (psar[psar.length - 1] < supportLevel) {
-      trade.tradeSignal = "sell: Price approaching support level";
-      trade.tradeType = TradingMode.sell;
-    }  else if (isFlashSellSignal) {
-      trade.tradeSignal = "Sell: Flash sell signal";
-      trade.tradeType = TradingMode.sell;
-    } else if (isFlashBuySignal) {
-      trade.tradeSignal = "Buy: Flash buy signal";
-      trade.tradeType = TradingMode.buy;
-    }  else if (percentageChange >= priceJumpThreshold && this.rsi[this.rsi.length -1] >= 70) {
-      trade.tradeSignal = `Sell: Sudden price jump detected (${percentageChange.toFixed(
-        2
-      )}% increase), Last price: BTC $${lastPrice.toFixed(2)}`;
-      trade.tradeType = TradingMode.sell;
-    } else if (percentageChange <= -priceDropThreshold && this.rsi[this.rsi.length -1] <= 30) {
-      trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(
-        2
-      )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
-      trade.tradeType = TradingMode.buy;
-    } else if (lastBuy && (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <= -stopLossThreshold) {
-      trade.tradeSignal = `Sell: Stop loss triggered (${stopLossThreshold}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
-      trade.tradeType = TradingMode.sell;
-    } else {
-      trade.tradeSignal = "No clear trading signal";
-      trade.tradeType = TradingMode.hold;
+
+    const detectTop = await this.detectTop(oneMinuteChart, 0.01)
+    const detectBottom = await this.detectBottom(oneMinuteChart, 0.01)
+    switch (lastTrade) {
+      case 'sell':
+        console.log(detectTop)
+        if (isBullishConditionMet) {
+          trade.tradeSignal = "Buy: Trend is consistently bullish";
+          trade.tradeType = TradingMode.buy;
+        } else if (isBullishCrossover && percentageChange >= priceJumpThreshold) {
+          trade.tradeSignal = "Buy: PSAR crossed above EMA";
+          trade.tradeType = TradingMode.buy;
+        } else if (psar[psar.length - 1] > resistanceLevel && detectBottom.isTrendReversal) {
+          trade.tradeSignal = "buy: Price approaching resistance level and bottom detected";
+          trade.tradeType = TradingMode.buy;
+        } else if (isFlashBuySignal) {
+          trade.tradeSignal = "Buy: Flash buy signal";
+          trade.tradeType = TradingMode.buy;
+        } else if (percentageChange >= priceJumpThreshold && this.rsi[this.rsi.length -1] >= 70) {
+          trade.tradeSignal = `Sell: Sudden price jump detected (${percentageChange.toFixed(2)}% increase), Last price: BTC $${lastPrice.toFixed(2)}`;
+          trade.tradeType = TradingMode.sell;
+        } else if (lastBuy && (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <= -stopLossThreshold) {
+          trade.tradeSignal = `Sell: Stop loss triggered (${stopLossThreshold}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+          trade.tradeType = TradingMode.sell;
+        } else {
+          trade.tradeSignal = "No clear trading signal";
+          trade.tradeType = TradingMode.hold;
+        }
+        console.log(trade.tradeSignal, this.rsi[this.rsi.length -1]);
+        return trade;
+    
+      case 'buy':
+        console.log(detectBottom)
+        if (isBearishConditionMet) {
+          trade.tradeSignal = "Sell: Trend is consistently bearish";
+          trade.tradeType = TradingMode.sell;
+        } else if (isBearishCrossover && percentageChange >= -priceDropThreshold) {
+          trade.tradeSignal = "Sell: PSAR crossed below EMA";
+          trade.tradeType = TradingMode.sell;
+        } else if (psar[psar.length - 1] < supportLevel  && detectTop.isTrendReversal) {
+          trade.tradeSignal = "sell: Price approaching support level and top detected";
+          trade.tradeType = TradingMode.sell;
+        } else if (isFlashSellSignal) {
+          trade.tradeSignal = "Sell: Flash sell signal";
+          trade.tradeType = TradingMode.sell;
+        } else if (percentageChange <= -priceDropThreshold && this.rsi[this.rsi.length -1] <= 30) {
+          trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(2)}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+          trade.tradeType = TradingMode.buy;
+        } else {
+          trade.tradeSignal = "No clear trading signal";
+          trade.tradeType = TradingMode.hold;
+        }
+        console.log(trade.tradeSignal, this.rsi[this.rsi.length -1]);
+        return trade;
     }
-    console.log(trade.tradeSignal, this.rsi[this.rsi.length -1]);
-    return trade;
   }
 }
