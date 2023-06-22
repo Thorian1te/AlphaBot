@@ -447,7 +447,7 @@ export class TradingIndicators {
         } else if (isBullishCrossover && percentageChange >= priceJumpThreshold) {
           trade.tradeSignal = "Buy: PSAR crossed above EMA";
           trade.tradeType = TradingMode.buy;
-        } else if (psar[psar.length - 1] > resistanceLevel && detectBottom.isTrendReversal) {
+        } else if (detectBottom.isTrendReversal) {
           trade.tradeSignal = "buy: Price approaching resistance level and bottom detected";
           trade.tradeType = TradingMode.buy;
         } else if (isFlashBuySignal) {
@@ -476,7 +476,7 @@ export class TradingIndicators {
         } else if (isBearishCrossover && percentageChange >= -priceDropThreshold) {
           trade.tradeSignal = "Sell: PSAR crossed below EMA";
           trade.tradeType = TradingMode.sell;
-        } else if (psar[psar.length - 1] < supportLevel  && detectTop.isTrendReversal) {
+        } else if (detectTop.isTrendReversal) {
           trade.tradeSignal = "sell: Price approaching support level and top detected";
           trade.tradeType = TradingMode.sell;
         } else if (isFlashSellSignal) {
