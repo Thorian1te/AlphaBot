@@ -464,8 +464,8 @@ export class TradingIndicators {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
         } else if (detectBottom.index === 1066 ) {
-          trade.tradeSignal = "Sell: bottom has been in for > 10 minutes "
-          trade.tradeType = TradingMode.sell
+          trade.tradeSignal = "Buy: bottom has been in for > 10 minutes "
+          trade.tradeType = TradingMode.buy
         }else {
           trade.tradeSignal = "No clear trading signal";
           trade.tradeType = TradingMode.hold;
