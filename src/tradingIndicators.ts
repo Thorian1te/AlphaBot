@@ -460,13 +460,10 @@ export class TradingIndicators {
         } else if (percentageChange <= -priceDropThreshold && this.rsi[this.rsi.length -1] <= 30) {
           trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(2)}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
-        }  else if (detectBottom.isTrendReversal && supportLevel) {
+        }  else if (detectBottom.isTrendReversal && lastPrice <= supportLevel) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
-        } else if (detectBottom.index === 1066 ) {
-          trade.tradeSignal = "Buy: bottom has been in for > 10 minutes "
-          trade.tradeType = TradingMode.buy
-        }else {
+        } else {
           trade.tradeSignal = "No clear trading signal";
           trade.tradeType = TradingMode.hold;
         }
@@ -495,9 +492,6 @@ export class TradingIndicators {
         }  else if (detectTop.isTrendReversal) {
           trade.tradeSignal = "sell: Price approaching support level and top detected";
           trade.tradeType = TradingMode.sell;
-        } else if (detectTop.index === 1066 ) {
-          trade.tradeSignal = "Sell: top has been in for > 10 minutes "
-          trade.tradeType = TradingMode.sell
         } else {
           trade.tradeSignal = "No clear trading signal";
           trade.tradeType = TradingMode.hold;
