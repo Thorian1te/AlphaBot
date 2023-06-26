@@ -5,8 +5,6 @@ import {
   ParabolicSar,
   TradeAnalysis,
   TradingMode,
-  Trend,
-  Trends,
   TxDetail,
 } from "./types";
 
@@ -389,27 +387,6 @@ export class TradingIndicators {
     };
   }
 
-  public checkTrend(
-    currentPrice: number,
-    previousHigh: number,
-    previousLow: number
-  ): Trends {
-    const priceRange = previousHigh - previousLow;
-
-    // Determine the price proximity to the high and low
-    const highProximity = (previousHigh - currentPrice) / priceRange;
-    const lowProximity = (currentPrice - previousLow) / priceRange;
-
-    // Determine the trend based on various factors
-    if (highProximity < 0.2 && lowProximity < 0.2) {
-      return Trends.BULLISH;
-    } else if (highProximity > 0.8 && lowProximity > 0.8) {
-      return Trends.BEARISH;
-    } else {
-      return Trends.NEUTRAL;
-    }
-  }
-
   public analyzeTradingSignals(
     psar: number[],
     sma: number[],
@@ -444,7 +421,6 @@ export class TradingIndicators {
     const lastTradeTime = new Date(lastTrade.date);
     const lastRsi = this.rsi[this.rsi.length - 1];
     const highLow = this.findHighAndLowValues(oneMinuteChart, 1080);
-    const trend = this.checkTrend(lastPrice, highLow.high[highLow.high.length - 1], highLow.low[highLow.low.length - 1]);
 
     // Confirm trend direction
     const isBullishTrend =
@@ -491,39 +467,37 @@ export class TradingIndicators {
         const detectBottom = this.detectBottom(oneMinuteChart, 0.001);
         console.log(`Looking for a buy, Support level ${supportLevel}`);
         console.log(detectBottom);
-        if(trend != Trends.BEARISH) {
-          if (isBullishConditionMet ) {
-            trade.tradeSignal = "Buy: Trend is consistently bullish";
-            trade.tradeType = TradingMode.buy;
-          } else if (
-            isBullishCrossover &&
-            percentageChange >= priceJumpThreshold
-          ) {
-            trade.tradeSignal = "Buy: PSAR crossed above EMA";
-            trade.tradeType = TradingMode.buy;
-          } else if (isFlashBuySignal) {
-            trade.tradeSignal = "Buy: Flash buy signal";
-            trade.tradeType = TradingMode.buy;
-          } else if (percentageChange <= -priceDropThreshold && lastRsi <= 30) {
-            trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(
-              2
-            )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
-            trade.tradeType = TradingMode.buy;
-          } else if (
-            detectBottom.isTrendReversal &&
-            lastPrice < supportLevel &&
-            lastRsi <= 30
-          ) {
-            trade.tradeSignal =
-              "buy: Price approaching support level and bottom detected";
-            trade.tradeType = TradingMode.buy;
-          } else {
-            trade.tradeSignal = "No clear trading signal";
-            trade.tradeType = TradingMode.hold;
-          }
-          console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
-          return trade;
-        } 
+        if (isBullishConditionMet) {
+          trade.tradeSignal = "Buy: Trend is consistently bullish";
+          trade.tradeType = TradingMode.buy;
+        } else if (
+          isBullishCrossover &&
+          percentageChange >= priceJumpThreshold
+        ) {
+          trade.tradeSignal = "Buy: PSAR crossed above EMA";
+          trade.tradeType = TradingMode.buy;
+        } else if (isFlashBuySignal) {
+          trade.tradeSignal = "Buy: Flash buy signal";
+          trade.tradeType = TradingMode.buy;
+        } else if (percentageChange <= -priceDropThreshold && lastRsi <= 30) {
+          trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(
+            2
+          )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+          trade.tradeType = TradingMode.buy;
+        } else if (
+          detectBottom.isTrendReversal &&
+          lastPrice < supportLevel &&
+          lastRsi <= 30
+        ) {
+          trade.tradeSignal =
+            "buy: Price approaching support level and bottom detected";
+          trade.tradeType = TradingMode.buy;
+        } else {
+          trade.tradeSignal = "No clear trading signal";
+          trade.tradeType = TradingMode.hold;
+        }
+        console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
+        return trade;
 
       case "buy": // last trade was a buy so look for a sell
         const detectTop = this.detectTop(oneMinuteChart, 0.001);
@@ -567,7 +541,7 @@ export class TradingIndicators {
           trade.tradeSignal = "No clear trading signal";
           trade.tradeType = TradingMode.hold;
         }
-        if(lastPrice <= lastBuy) trade.tradeType = TradingMode.hold // dont sell for less than what you paid for. 
+        if (lastPrice <= lastBuy) trade.tradeType = TradingMode.hold; // dont sell for less than what you paid for.
         console.log(trade.tradeSignal);
         return trade;
     }
