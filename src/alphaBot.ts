@@ -204,7 +204,7 @@ export class AlphaBot {
     this.asset = assetsBTC;
     console.log(`Collecting ${this.asset.ticker} pool price`);
     await this.readFromFile(interval);
-    const highlow = await this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart, 1080);
+    const highlow = this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart, 1080);
     console.log(`One minute chart highs and lows`, highlow.high.slice(-1), highlow.low.slice(-1));
 
     while (start) {
@@ -340,10 +340,12 @@ export class AlphaBot {
     if (signal.type === TradingMode.buy && lastAction != 'buy' && +tradeTimeDifference.timeInMinutes >= 15) {
       console.log(`Spending: `, bal.sbusd.formatedAssetString());
       const decision = bal.sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
+      if(decision == TradingMode.buy) this.signalTracker.push(`Buying btc`)
       return decision;
     } else if (signal.type === TradingMode.sell && lastAction != 'sell' && +tradeTimeDifference.timeInMinutes >= 15) {
-      console.log(`Spending: `, bal.sbtc.formatedAssetString());
+      console.log(`Selling: `, bal.sbtc.formatedAssetString());
       const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.sell : TradingMode.hold
+      if(decision == TradingMode.sell) this.signalTracker.push(`Selling btc`)
       return decision;
     } else {
       if (hasTxRecords) {
