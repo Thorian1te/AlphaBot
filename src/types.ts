@@ -108,13 +108,6 @@ export declare enum Trend {
     RISING = 1
 }
 
-export declare enum Trends {
-    BULLISH = "Bullish trend",
-    BEARISH = "Bearish trend",
-    NEUTRAL = "Neutral trend"
-  }
-
-
 export type HighAndLow = {
     high: number[],
     low: number[]
