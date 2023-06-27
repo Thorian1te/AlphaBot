@@ -423,7 +423,7 @@ export class TradingIndicators {
     const lastTradeTime = new Date(lastTrade.date);
     const lastRsi = this.rsi[this.rsi.length - 1];
     const highLow = this.findHighAndLowValues(oneMinuteChart.slice(-180), 180);
-    
+
     // Confirm trend direction
     const isBullishTrend =
       psar[psar.length - 1] < sma[sma.length - 1] &&
@@ -490,7 +490,7 @@ export class TradingIndicators {
           )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
         } else if (
-          detectBottom.isTrendReversal && lastOneMinuteRsi >= 30
+          detectBottom.isTrendReversal && lastOneMinuteRsi <= 20
         ) {
           trade.tradeSignal =
             "buy: Price approaching support level and bottom detected";
