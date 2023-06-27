@@ -321,20 +321,20 @@ export class TradingIndicators {
     return highAndLowArray;
   }
 
-  public detectTop(prices: number[], reversalThreshold: number, recentHighs: number[]) {
+  public detectTop(prices: number[], reversalThreshold: number) {
     let highestPrice = -Infinity;
     let highestIndex = -1;
     let previousPrice = -Infinity;
     let previousIndex = -1;
     let isTrendReversal = false;
-  
+    
     for (let i = prices.length - 1; i >= prices.length - 30; i--) {
-      if (prices[i] > highestPrice && prices[i] >= Math.max(...recentHighs)) {
+      if (prices[i] > highestPrice) {
         previousPrice = highestPrice;
         previousIndex = highestIndex;
         highestPrice = prices[i];
         highestIndex = i;
-  
+        
         // Check for trend reversal or significant price change
         if (
           previousIndex >= 0 &&
@@ -346,29 +346,28 @@ export class TradingIndicators {
         }
       }
     }
-  
+    
     return {
       price: highestPrice,
       index: highestIndex,
-      isTrendReversal: isTrendReversal,
+      isTrendReversal: isTrendReversal
     };
   }
   
-
-  public detectBottom(prices: number[], reversalThreshold: number, recentLows: number[]) {
+  public detectBottom(prices: number[], reversalThreshold: number) {
     let lowestPrice = Infinity;
     let lowestIndex = -1;
     let previousPrice = Infinity;
     let previousIndex = -1;
     let isTrendReversal = false;
-  
+    
     for (let i = prices.length - 1; i >= prices.length - 30; i--) {
-      if (prices[i] < lowestPrice && prices[i] <= Math.min(...recentLows)) {
+      if (prices[i] < lowestPrice) {
         previousPrice = lowestPrice;
         previousIndex = lowestIndex;
         lowestPrice = prices[i];
         lowestIndex = i;
-  
+        
         // Check for trend reversal or significant price change
         if (
           previousIndex >= 0 &&
@@ -380,14 +379,13 @@ export class TradingIndicators {
         }
       }
     }
-  
+    
     return {
       price: lowestPrice,
       index: lowestIndex,
-      isTrendReversal: isTrendReversal,
+      isTrendReversal: isTrendReversal
     };
   }
-  
 
   public analyzeTradingSignals(
     psar: number[],
@@ -425,7 +423,7 @@ export class TradingIndicators {
     const lastTradeTime = new Date(lastTrade.date);
     const lastRsi = this.rsi[this.rsi.length - 1];
     const highLow = this.findHighAndLowValues(oneMinuteChart.slice(-180), 180);
-
+    
     // Confirm trend direction
     const isBullishTrend =
       psar[psar.length - 1] < sma[sma.length - 1] &&
@@ -471,7 +469,7 @@ export class TradingIndicators {
 
     switch (lastAction) {
       case "sell":
-        detectBottom = this.detectBottom(oneMinuteChart, 0.0001, highLow.low);
+        detectBottom = this.detectBottom(oneMinuteChart, 0.0001);
         console.log(`Looking for a buy, Support level ${supportLevel}`);
         console.log(detectBottom);
         if (isBullishConditionMet) {
@@ -505,7 +503,7 @@ export class TradingIndicators {
         return trade;
 
       case "buy": // last trade was a buy so look for a sell
-        detectTop = this.detectTop(oneMinuteChart, 0.001, highLow.high);
+        detectTop = this.detectTop(oneMinuteChart, 0.001);
         console.log(`Looking for a Sell, resistance level ${resistanceLevel}`);
         console.log(detectTop);
         if (isBearishConditionMet) {
