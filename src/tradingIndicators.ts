@@ -486,8 +486,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
         } else if (
           detectBottom.isTrendReversal &&
-          lastPrice < supportLevel &&
-          lastRsi <= 45
+          lastPrice < supportLevel
         ) {
           trade.tradeSignal =
             "buy: Price approaching support level and bottom detected";
@@ -531,7 +530,6 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
         } else if (
           detectTop.isTrendReversal &&
-          lastRsi >= 55 &&
           lastPrice > resistanceLevel
         ) {
           trade.tradeSignal =
