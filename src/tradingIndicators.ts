@@ -371,9 +371,9 @@ export class TradingIndicators {
         lowestIndex = i;
         
         // Check for trend reversal or significant price change
-        console.log((previousPrice - lowestPrice) / previousPrice)
+        // console.log((previousPrice - lowestPrice) / previousPrice)
         
-        console.log((previousPrice - lowestPrice) / previousPrice >= reversalThreshold)
+        // console.log((previousPrice - lowestPrice) / previousPrice >= reversalThreshold)
         if (
           previousIndex >= 0 &&
           (previousPrice - lowestPrice) / previousPrice >= reversalThreshold
