@@ -371,10 +371,14 @@ export class TradingIndicators {
         lowestIndex = i;
         
         // Check for trend reversal or significant price change
+        console.log((previousPrice - lowestPrice) / previousPrice)
+        
+        console.log((previousPrice - lowestPrice) / previousPrice >= reversalThreshold)
         if (
           previousIndex >= 0 &&
           (previousPrice - lowestPrice) / previousPrice >= reversalThreshold
         ) {
+          
           isTrendReversal = true;
         } else {
           isTrendReversal = false;
@@ -498,6 +502,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         } else {
+          trade.tradeSignal = "No clear treading signal";
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
