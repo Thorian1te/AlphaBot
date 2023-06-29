@@ -467,17 +467,10 @@ export class TradingIndicators {
     const isBullishConditionMet = bullishPeriods >= trendWeight;
     const isBearishConditionMet = bearishPeriods >= trendWeight;
 
-    let detectBottom: { isTrendReversal: any; price?: number; index?: number; }
-    let detectRsiBottom: { isTrendReversal: any; price?: number; index?: number; }
-    let detectTop: { isTrendReversal: any; price?: number; index?: number; }
-    let detectRsiTop: { isTrendReversal: any; price?: number; index?: number; }
-
-    
-
     switch (lastAction) {
       case "sell":
-        detectBottom = this.detectBottom(oneMinuteChart, 0.001, 30);
-        detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.001, 6);
+        const detectBottom = this.detectBottom(oneMinuteChart, 0.001, 30);
+        const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.001, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}`);
         console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
@@ -493,15 +486,10 @@ export class TradingIndicators {
           trade.tradeSignal = "Buy: Flash buy signal";
           trade.tradeType = TradingMode.buy;
         } else if (percentageChange <= -priceDropThreshold && lastRsi <= 30) {
-          trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(
-            2
-          )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+          trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed( 2 )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
-        } else if (
-          detectBottom.isTrendReversal && FiveMinuteRsi[FiveMinuteRsi.length -1] >= 55
-        ) {
-          trade.tradeSignal =
-            "buy: Price approaching support level and bottom detected";
+        } else if ( detectBottom.isTrendReversal && FiveMinuteRsi[FiveMinuteRsi.length -1] >= 55 ) {
+          trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
         } else {
           trade.tradeSignal = "No clear trading signal";
@@ -511,8 +499,8 @@ export class TradingIndicators {
         return trade;
 
       case "buy": // last trade was a buy so look for a sell
-        detectTop = this.detectTop(oneMinuteChart, 0.0001, 30);
-        detectRsiTop = this.detectTop(FiveMinuteRsi, 0.001, 6)
+        const detectTop = this.detectTop(oneMinuteChart, 0.0001, 30);
+        const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.001, 6)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel}`);
         console.log(detectTop, detectRsiTop);
         if (isBearishConditionMet) {
