@@ -504,7 +504,7 @@ export class TradingIndicators {
         return trade;
 
       case "buy": // last trade was a buy so look for a sell
-        detectTop = this.detectTop(oneMinuteChart, 0.001);
+        detectTop = this.detectTop(oneMinuteChart, 0.0001);
         console.log(`Looking for a Sell, resistance level ${resistanceLevel}`);
         console.log(detectTop);
         if (isBearishConditionMet) {
