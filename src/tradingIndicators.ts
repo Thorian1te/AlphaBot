@@ -323,14 +323,14 @@ export class TradingIndicators {
     return highAndLowArray;
   }
 
-  public detectTop(prices: number[], reversalThreshold: number) {
+  public detectTop(prices: number[], reversalThreshold: number, arraylength: number) {
     let highestPrice = -Infinity;
     let highestIndex = -1;
     let previousPrice = -Infinity;
     let previousIndex = -1;
     let isTrendReversal = false;
     
-    for (let i = prices.length - 1; i >= prices.length - 30; i--) {
+    for (let i = prices.length - 1; i >= prices.length - arraylength; i--) {
       if (prices[i] > highestPrice) {
         previousPrice = highestPrice;
         previousIndex = highestIndex;
@@ -356,14 +356,14 @@ export class TradingIndicators {
     };
   }
   
-  public detectBottom(prices: number[], reversalThreshold: number) {
+  public detectBottom(prices: number[], reversalThreshold: number, arraylength: number) {
     let lowestPrice = Infinity;
     let lowestIndex = -1;
     let previousPrice = Infinity;
     let previousIndex = -1;
     let isTrendReversal = false;
     
-    for (let i = prices.length - 1; i >= prices.length - 30; i--) {
+    for (let i = prices.length - 1; i >= prices.length - arraylength; i--) {
       if (prices[i] < lowestPrice) {
         previousPrice = lowestPrice;
         previousIndex = lowestIndex;
@@ -476,8 +476,8 @@ export class TradingIndicators {
 
     switch (lastAction) {
       case "sell":
-        detectBottom = this.detectBottom(oneMinuteChart, 0.0001);
-        detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.001);
+        detectBottom = this.detectBottom(oneMinuteChart, 0.0001, 30);
+        detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.001, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}`);
         console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
@@ -511,8 +511,8 @@ export class TradingIndicators {
         return trade;
 
       case "buy": // last trade was a buy so look for a sell
-        detectTop = this.detectTop(oneMinuteChart, 0.0001);
-        detectRsiTop = this.detectTop(FiveMinuteRsi, 0.001)
+        detectTop = this.detectTop(oneMinuteChart, 0.0001, 30);
+        detectRsiTop = this.detectTop(FiveMinuteRsi, 0.001, 6)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel}`);
         console.log(detectTop, detectRsiTop);
         if (isBearishConditionMet) {
