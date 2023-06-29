@@ -538,9 +538,6 @@ export class TradingIndicators {
         if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal) {
           trade.tradeSignal = "sell: Price approaching resistance level and top detected";
           trade.tradeType = TradingMode.sell;
-        } else {
-          trade.tradeSignal = "No clear trading signal";
-          trade.tradeType = TradingMode.hold;
         }
         if (lastPrice <= lastBuy) trade.tradeType = TradingMode.hold; // dont sell for less than what you paid for.
         console.log(trade.tradeSignal);
