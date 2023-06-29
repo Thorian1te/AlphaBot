@@ -337,6 +337,7 @@ export class AlphaBot {
     const lastAction = this.txRecords[this.txRecords.length -1].action
     console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
     console.log(`last trade was: ${tradeTimeDifference.timeInMinutes} ago at price ${this.txRecords[this.txRecords.length - 1].assetPrice}`)
+    console.log(`Signal is: ${signal}`)
     if (signal.type === TradingMode.buy && lastAction != 'buy' && +tradeTimeDifference.timeInMinutes >= 15) {
       console.log(`Spending: `, bal.sbusd.formatedAssetString());
       const decision = bal.sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
