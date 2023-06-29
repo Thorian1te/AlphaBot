@@ -395,6 +395,7 @@ export class TradingIndicators {
     signalLine: number[],
     trendWeight: number,
     fifteenMinuteChart: number[],
+    fiveMinuteChart: number[],
     trends: number[],
     oneMinuteChart: number[],
     lastTrade: TxDetail
@@ -413,9 +414,9 @@ export class TradingIndicators {
     const lastPrice = oneMinuteChart[oneMinuteChart.length - 1];
     const percentageChange =
       ((lastPrice - previousPrice) / previousPrice) * 100;
-    const OneMinuteRsi = rsi(oneMinuteChart)
-    const lastOneMinuteRsi = OneMinuteRsi[OneMinuteRsi.length -1]
-    console.log(`Last one minute rsi: ${lastOneMinuteRsi}`)
+    const FiveMinuteRsi = rsi(fiveMinuteChart)
+    const lastFiveMinuteRsi = FiveMinuteRsi[FiveMinuteRsi.length -1]
+    console.log(`Last five minute rsi: ${lastFiveMinuteRsi}`)
     // Last trade
     const lastAction = lastTrade.action;
     const lastTradePrice = lastTrade.assetPrice;
@@ -490,7 +491,7 @@ export class TradingIndicators {
           )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
         } else if (
-          detectBottom.isTrendReversal && lastOneMinuteRsi <= 20
+          detectBottom.isTrendReversal && lastFiveMinuteRsi <= 20
         ) {
           trade.tradeSignal =
             "buy: Price approaching support level and bottom detected";
@@ -533,7 +534,7 @@ export class TradingIndicators {
           )}`;
           trade.tradeType = TradingMode.sell;
         } else if (
-          detectTop.isTrendReversal && lastOneMinuteRsi >= 70
+          detectTop.isTrendReversal && lastFiveMinuteRsi >= 70
         ) {
           trade.tradeSignal =
             "sell: Price approaching resistance level and top detected";
