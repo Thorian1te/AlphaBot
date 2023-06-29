@@ -473,8 +473,8 @@ export class TradingIndicators {
 
     switch (lastAction) {
       case "sell":
-        detectBottom = this.detectBottom(oneMinuteChart, 0.0001, 30);
-        detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.001, 6);
+        detectBottom = this.detectBottom(oneMinuteChart, -0.001, 30);
+        detectRsiBottom = this.detectBottom(FiveMinuteRsi, -0.001, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}`);
         console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
