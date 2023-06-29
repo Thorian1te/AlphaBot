@@ -371,11 +371,14 @@ export class TradingIndicators {
         lowestIndex = i;
         
         // Check for trend reversal or significant price change
-        if (previousIndex >= 0 && (lowestPrice - previousPrice) / previousPrice >= reversalThreshold) {
+        if (
+          previousIndex >= 0 &&
+          (previousPrice - lowestPrice) / previousPrice >= reversalThreshold
+        ) {
           isTrendReversal = true;
         } else {
           isTrendReversal = false;
-        }        
+        }
       }
     }
     
