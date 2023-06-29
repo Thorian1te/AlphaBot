@@ -466,14 +466,16 @@ export class TradingIndicators {
     const isBearishConditionMet = bearishPeriods >= trendWeight;
 
     let detectBottom: { isTrendReversal: any; price?: number; index?: number; }
+    let detectRsiBottom: { isTrendReversal: any; price?: number; index?: number; }
     let detectTop: { isTrendReversal: any; price?: number; index?: number; }
     let detectRsiTop: { isTrendReversal: any; price?: number; index?: number; }
 
     switch (lastAction) {
       case "sell":
         detectBottom = this.detectBottom(oneMinuteChart, 0.0001);
+        detectRsiBottom = this.detectBottom(oneMinuteChart, 0.0001);
         console.log(`Looking for a buy, Support level ${supportLevel}`);
-        console.log(detectBottom);
+        console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
           trade.tradeSignal = "Buy: Trend is consistently bullish";
           trade.tradeType = TradingMode.buy;
@@ -492,7 +494,7 @@ export class TradingIndicators {
           )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
         } else if (
-          detectBottom.isTrendReversal && lastFiveMinuteRsi <= 30
+          detectBottom.isTrendReversal && detectRsiBottom
         ) {
           trade.tradeSignal =
             "buy: Price approaching support level and bottom detected";
@@ -508,7 +510,7 @@ export class TradingIndicators {
         detectTop = this.detectTop(oneMinuteChart, 0.0001);
         detectRsiTop = this.detectTop(FiveMinuteRsi, 0.001)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel}`);
-        console.log(detectTop);
+        console.log(detectTop, detectRsiTop);
         if (isBearishConditionMet) {
           trade.tradeSignal = "Sell: Trend is consistently bearish";
           trade.tradeType = TradingMode.sell;
