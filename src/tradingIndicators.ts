@@ -10,6 +10,8 @@ import {
 
 export class TradingIndicators {
   public rsi: number[] = [];
+  private currentRsi: number[] = [];
+  private currentOneMinuteChart: number[] = [];
   // ------------------------------------- Trading Indicators ----------------------------------------
 
   /**
@@ -468,12 +470,14 @@ export class TradingIndicators {
     let detectBottom: { isTrendReversal: any; price?: number; index?: number; }
     let detectRsiBottom: { isTrendReversal: any; price?: number; index?: number; }
     let detectTop: { isTrendReversal: any; price?: number; index?: number; }
-    let detectRsiTop: { isTrendReversal: any; price?: number; index?: number; }
+    let detectRsiTop: { isTrendReversal: any; price?: number; index?: number; }\
+
+    
 
     switch (lastAction) {
       case "sell":
         detectBottom = this.detectBottom(oneMinuteChart, 0.0001);
-        detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.0001);
+        detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.001);
         console.log(`Looking for a buy, Support level ${supportLevel}`);
         console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
@@ -494,7 +498,7 @@ export class TradingIndicators {
           )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
         } else if (
-          detectBottom.isTrendReversal && detectRsiBottom
+          detectBottom.isTrendReversal && detectRsiBottom && FiveMinuteRsi[FiveMinuteRsi.length -1] >= 55
         ) {
           trade.tradeSignal =
             "buy: Price approaching support level and bottom detected";
