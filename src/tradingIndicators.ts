@@ -498,7 +498,7 @@ export class TradingIndicators {
           )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
         } else if (
-          detectBottom.isTrendReversal && detectRsiBottom && FiveMinuteRsi[FiveMinuteRsi.length -1] >= 55
+          detectBottom.isTrendReversal && FiveMinuteRsi[FiveMinuteRsi.length -1] >= 55
         ) {
           trade.tradeSignal =
             "buy: Price approaching support level and bottom detected";
