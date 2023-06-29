@@ -467,6 +467,7 @@ export class TradingIndicators {
 
     let detectBottom: { isTrendReversal: any; price?: number; index?: number; }
     let detectTop: { isTrendReversal: any; price?: number; index?: number; }
+    let detectRsiTop: { isTrendReversal: any; price?: number; index?: number; }
 
     switch (lastAction) {
       case "sell":
@@ -505,6 +506,7 @@ export class TradingIndicators {
 
       case "buy": // last trade was a buy so look for a sell
         detectTop = this.detectTop(oneMinuteChart, 0.0001);
+        detectRsiTop = this.detectTop(FiveMinuteRsi, 0.001)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel}`);
         console.log(detectTop);
         if (isBearishConditionMet) {
@@ -534,7 +536,7 @@ export class TradingIndicators {
           )}`;
           trade.tradeType = TradingMode.sell;
         } else if (
-          detectTop.isTrendReversal && lastFiveMinuteRsi >= 60
+          detectTop.isTrendReversal && detectRsiTop.isTrendReversal
         ) {
           trade.tradeSignal =
             "sell: Price approaching resistance level and top detected";
