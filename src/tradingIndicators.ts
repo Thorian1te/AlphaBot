@@ -470,7 +470,7 @@ export class TradingIndicators {
     let detectBottom: { isTrendReversal: any; price?: number; index?: number; }
     let detectRsiBottom: { isTrendReversal: any; price?: number; index?: number; }
     let detectTop: { isTrendReversal: any; price?: number; index?: number; }
-    let detectRsiTop: { isTrendReversal: any; price?: number; index?: number; }\
+    let detectRsiTop: { isTrendReversal: any; price?: number; index?: number; }
 
     
 
