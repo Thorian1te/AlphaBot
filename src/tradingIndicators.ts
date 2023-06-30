@@ -439,7 +439,7 @@ export class TradingIndicators {
     const lastAction = lastTrade.action;
     const lastTradePrice = lastTrade.assetPrice;
     const lastBuy = lastAction === "buy" ? lastTradePrice : undefined;
-    const lastTradeTime = this.getTimeDifference(lastTrade.date)
+    const lastTradeTime = this.getTimeDifference(new Date(lastTrade.date))
     const lastRsi = this.rsi[this.rsi.length - 1];
     const highLow = this.findHighAndLowValues(oneMinuteChart.slice(-180), 180);
 
