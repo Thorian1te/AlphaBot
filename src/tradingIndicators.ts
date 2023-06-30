@@ -3,6 +3,7 @@ import {
   HighAndLow,
   MacdResult,
   ParabolicSar,
+  Time,
   TradeAnalysis,
   TradingMode,
   TxDetail,
@@ -287,6 +288,17 @@ export class TradingIndicators {
     return false; // No sell signal detected
   }
 
+  private getTimeDifference(startTime: Date): Time {
+    const currentTime = new Date();
+    const difference = currentTime.getTime() - startTime.getTime();
+    const time: Time = {
+      timeInSeconds: difference / 1000,
+      timeInMinutes: difference / 1000 / 60,
+      timeInHours: difference / 1000 / 60 / 60,
+    };
+    return time;
+  }
+
   /** Helper function to find highs and lows in an array
    *
    * @param data - input array
@@ -427,7 +439,7 @@ export class TradingIndicators {
     const lastAction = lastTrade.action;
     const lastTradePrice = lastTrade.assetPrice;
     const lastBuy = lastAction === "buy" ? lastTradePrice : undefined;
-    const lastTradeTime = new Date(lastTrade.date);
+    const lastTradeTime = this.getTimeDifference(lastTrade.date)
     const lastRsi = this.rsi[this.rsi.length - 1];
     const highLow = this.findHighAndLowValues(oneMinuteChart.slice(-180), 180);
 
@@ -497,7 +509,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal) {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && +lastTradeTime.timeInMinutes >= 30) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
@@ -539,13 +551,15 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal) {
+        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && +lastTradeTime.timeInMinutes >= 30) {
           trade.tradeSignal = "sell: Price approaching resistance level and top detected";
           trade.tradeType = TradingMode.sell;
           return trade
+        } else {
+          trade.tradeSignal = "No clear treading signal";
+          console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
+          return trade
         }
-        if (lastPrice <= lastBuy) trade.tradeType = TradingMode.hold; // dont sell for less than what you paid for.
-        return trade;
     }
   }
 }
