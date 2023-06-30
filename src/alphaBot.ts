@@ -345,7 +345,7 @@ export class AlphaBot {
       return decision;
     } else if (signal.type === TradingMode.sell && lastAction != 'sell' && +tradeTimeDifference.timeInMinutes >= 15) {
       console.log(`Selling: `, bal.sbtc.formatedAssetString());
-      const decision = sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.sell : TradingMode.hold
+      const decision = sbusd.assetAmount.amount().toNumber() > 401 ? TradingMode.sell : TradingMode.hold
       if(decision == TradingMode.sell) this.signalTracker.push(`Selling btc`)
       return decision;
     } else {
