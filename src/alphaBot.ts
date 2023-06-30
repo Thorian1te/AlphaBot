@@ -340,12 +340,12 @@ export class AlphaBot {
     console.log(`Signal is: ${signal.decision}`)
     if (signal.type === TradingMode.buy && lastAction != 'buy' && +tradeTimeDifference.timeInMinutes >= 15) {
       console.log(`Spending: `, bal.sbusd.formatedAssetString());
-      const decision = bal.sbusd.assetAmount.amount().toNumber() > 400 ? TradingMode.buy : TradingMode.hold
+      const decision = bal.sbusd.assetAmount.amount().toNumber() > tradingAmount ? TradingMode.buy : TradingMode.hold
       if(decision == TradingMode.buy) this.signalTracker.push(`Buying btc`)
       return decision;
     } else if (signal.type === TradingMode.sell && lastAction != 'sell' && +tradeTimeDifference.timeInMinutes >= 15) {
       console.log(`Selling: `, bal.sbtc.formatedAssetString());
-      const decision = sbusd.assetAmount.amount().toNumber() > 401 ? TradingMode.sell : TradingMode.hold
+      const decision = sbusd.assetAmount.amount().toNumber() > tradingAmount + 1 ? TradingMode.sell : TradingMode.hold
       if(decision == TradingMode.sell) this.signalTracker.push(`Selling btc`)
       return decision;
     } else {
