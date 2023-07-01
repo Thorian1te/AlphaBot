@@ -362,7 +362,7 @@ export class TradingIndicators {
     }
     
     return {
-      price: highestPrice,
+      highest: highestPrice,
       index: highestIndex,
       isTrendReversal: isTrendReversal
     };
@@ -399,7 +399,7 @@ export class TradingIndicators {
     }
     
     return {
-      price: lowestPrice,
+      lowest: lowestPrice,
       index: lowestIndex,
       isTrendReversal: isTrendReversal
     };
@@ -486,7 +486,7 @@ export class TradingIndicators {
     switch (lastAction) {
       case "sell":
         const detectBottom = this.detectBottom(oneMinuteChart, 0.0001, 30);
-        const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.001, 6);
+        const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}`);
         console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
@@ -520,8 +520,8 @@ export class TradingIndicators {
         }
       case "buy": // last trade was a buy so look for a sell
         const detectTop = this.detectTop(oneMinuteChart, 0.0001, 30);
-        const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.001, 6)
-        console.log(`Looking for a Sell, resistance level ${resistanceLevel}`);
+        const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
+        console.log(`Looking for a Sell, resistance level ${resistanceLevel}`); 
         console.log(detectTop, detectRsiTop);
         if (isBearishConditionMet) {
           trade.tradeSignal = "Sell: Trend is consistently bearish";
