@@ -46,7 +46,7 @@ const assetsBTCB = assetFromStringEx(`BNB/BTCB-1DE`)
 const oneMinuteInMs = 60 * 1000; // 1 minute in milliseconds
 
 // amount to be traded in 
-const tradingAmount = 450
+const tradingAmount = 1000
 
 const tradePercentage = 0.03 //represented as a number
 
