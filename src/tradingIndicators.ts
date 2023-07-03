@@ -497,7 +497,7 @@ export class TradingIndicators {
 
     switch (lastAction) {
       case "sell":
-        const detectBottom = this.detectBottom(fiveMinuteChart, 0.001, 30);
+        const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${direction}`);
         console.log(detectBottom, detectRsiBottom);
