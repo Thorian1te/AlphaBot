@@ -393,9 +393,6 @@ export class TradingIndicators {
         lowestIndex = i;
         
         // Check for trend reversal or significant price change
-        // console.log((previousPrice - lowestPrice) / previousPrice)
-        
-        // console.log((previousPrice - lowestPrice) / previousPrice >= reversalThreshold)
         if (
           previousIndex >= 0 &&
           (previousPrice - lowestPrice) / previousPrice >= reversalThreshold
@@ -521,7 +518,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Downward') {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Downward' && lastRsi <=50 && lastPrice <= lastTradePrice) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
@@ -563,7 +560,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Upward') {
+        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Upward' && lastRsi >=50 && lastPrice > lastTradePrice) {
           trade.tradeSignal = "sell: Price approaching resistance level and top detected";
           trade.tradeType = TradingMode.sell;
           return trade
