@@ -21,7 +21,7 @@ export class TradingIndicators {
    * @param period what period to calculate by
    * @returns
    */
-  public async getEma(values: number[], period: number): Promise<number[]> {
+  public getEma(values: number[], period: number): number[] {
     const result = ema(period, values);
     return result;
   }
@@ -31,7 +31,7 @@ export class TradingIndicators {
    * @param period - 15
    * @returns
    */
-  public async getSma(values: number[], period: number): Promise<number[]> {
+  public getSma(values: number[], period: number): number[] {
     const result = sma(period, values);
     return result;
   }
@@ -148,6 +148,16 @@ export class TradingIndicators {
       console.log(`Current price period: ${chart[currentPeriod]}`);
       console.log(`Previous price period: ${chart[previousPeriod]}`);
       return false;
+    }
+  }
+
+  public determineDirection(currentSMA: number, previousSMA: number): string {
+    if (currentSMA > previousSMA) {
+      return "Upward";
+    } else if (currentSMA < previousSMA) {
+      return "Downward";
+    } else {
+      return "Stable";
     }
   }
 
@@ -441,7 +451,9 @@ export class TradingIndicators {
     const lastBuy = lastAction === "buy" ? lastTradePrice : undefined;
     const lastTradeTime = this.getTimeDifference(new Date(lastTrade.date))
     const lastRsi = this.rsi[this.rsi.length - 1];
-    const highLow = this.findHighAndLowValues(oneMinuteChart.slice(-180), 180);
+
+    const oneminuteChartlastthirty = this.getSma(oneMinuteChart.slice(-30), 1)
+    const direction = this.determineDirection(oneminuteChartlastthirty[oneminuteChartlastthirty.length -1], oneminuteChartlastthirty[oneminuteChartlastthirty.length -2])
 
     // Confirm trend direction
     const isBullishTrend =
@@ -485,9 +497,9 @@ export class TradingIndicators {
 
     switch (lastAction) {
       case "sell":
-        const detectBottom = this.detectBottom(oneMinuteChart, 0.0001, 30);
+        const detectBottom = this.detectBottom(fiveMinuteChart, 0.001, 30);
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
-        console.log(`Looking for a buy, Support level ${supportLevel}`);
+        console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${direction}`);
         console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
           trade.tradeSignal = "Buy: Trend is consistently bullish";
@@ -519,9 +531,9 @@ export class TradingIndicators {
           return trade
         }
       case "buy": // last trade was a buy so look for a sell
-        const detectTop = this.detectTop(oneMinuteChart, 0.0001, 30);
+        const detectTop = this.detectTop(fiveMinuteChart, 0.0001, 30);
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
-        console.log(`Looking for a Sell, resistance level ${resistanceLevel}`); 
+        console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${direction}`); 
         console.log(detectTop, detectRsiTop);
         if (isBearishConditionMet) {
           trade.tradeSignal = "Sell: Trend is consistently bearish";
