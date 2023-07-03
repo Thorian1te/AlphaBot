@@ -452,8 +452,8 @@ export class TradingIndicators {
     const lastTradeTime = this.getTimeDifference(new Date(lastTrade.date))
     const lastRsi = this.rsi[this.rsi.length - 1];
 
-    const oneminuteChartlastthirty = this.getSma(oneMinuteChart.slice(-30), 1)
-    const direction = this.determineDirection(oneminuteChartlastthirty[oneminuteChartlastthirty.length -1], oneminuteChartlastthirty[oneminuteChartlastthirty.length -2])
+    const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
+    const FiveMinutedirection = this.determineDirection(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1], fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -2])
 
     // Confirm trend direction
     const isBullishTrend =
@@ -499,7 +499,7 @@ export class TradingIndicators {
       case "sell":
         const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
-        console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${direction}`);
+        console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${FiveMinutedirection}`);
         console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
           trade.tradeSignal = "Buy: Trend is consistently bullish";
@@ -521,7 +521,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && direction !== 'Downward') {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Downward') {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
@@ -533,7 +533,7 @@ export class TradingIndicators {
       case "buy": // last trade was a buy so look for a sell
         const detectTop = this.detectTop(fiveMinuteChart, 0.0001, 30);
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
-        console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${direction}`); 
+        console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${FiveMinutedirection}`); 
         console.log(detectTop, detectRsiTop);
         if (isBearishConditionMet) {
           trade.tradeSignal = "Sell: Trend is consistently bearish";
@@ -563,7 +563,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && direction !== 'Upward') {
+        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Upward') {
           trade.tradeSignal = "sell: Price approaching resistance level and top detected";
           trade.tradeType = TradingMode.sell;
           return trade
