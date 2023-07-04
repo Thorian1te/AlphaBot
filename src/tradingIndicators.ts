@@ -3,6 +3,7 @@ import {
   HighAndLow,
   MacdResult,
   ParabolicSar,
+  Time,
   TradeAnalysis,
   TradingMode,
   TxDetail,
@@ -10,6 +11,8 @@ import {
 
 export class TradingIndicators {
   public rsi: number[] = [];
+  private currentRsi: number[] = [];
+  private currentOneMinuteChart: number[] = [];
   // ------------------------------------- Trading Indicators ----------------------------------------
 
   /**
@@ -18,7 +21,7 @@ export class TradingIndicators {
    * @param period what period to calculate by
    * @returns
    */
-  public async getEma(values: number[], period: number): Promise<number[]> {
+  public getEma(values: number[], period: number): number[] {
     const result = ema(period, values);
     return result;
   }
@@ -28,7 +31,7 @@ export class TradingIndicators {
    * @param period - 15
    * @returns
    */
-  public async getSma(values: number[], period: number): Promise<number[]> {
+  public getSma(values: number[], period: number): number[] {
     const result = sma(period, values);
     return result;
   }
@@ -145,6 +148,16 @@ export class TradingIndicators {
       console.log(`Current price period: ${chart[currentPeriod]}`);
       console.log(`Previous price period: ${chart[previousPeriod]}`);
       return false;
+    }
+  }
+
+  public determineDirection(currentSMA: number, previousSMA: number): string {
+    if (currentSMA > previousSMA) {
+      return "Upward";
+    } else if (currentSMA < previousSMA) {
+      return "Downward";
+    } else {
+      return "Stable";
     }
   }
 
@@ -285,6 +298,17 @@ export class TradingIndicators {
     return false; // No sell signal detected
   }
 
+  private getTimeDifference(startTime: Date): Time {
+    const currentTime = new Date();
+    const difference = currentTime.getTime() - startTime.getTime();
+    const time: Time = {
+      timeInSeconds: difference / 1000,
+      timeInMinutes: difference / 1000 / 60,
+      timeInHours: difference / 1000 / 60 / 60,
+    };
+    return time;
+  }
+
   /** Helper function to find highs and lows in an array
    *
    * @param data - input array
@@ -321,14 +345,14 @@ export class TradingIndicators {
     return highAndLowArray;
   }
 
-  public detectTop(prices: number[], reversalThreshold: number) {
+  public detectTop(prices: number[], reversalThreshold: number, arraylength: number) {
     let highestPrice = -Infinity;
     let highestIndex = -1;
     let previousPrice = -Infinity;
     let previousIndex = -1;
     let isTrendReversal = false;
     
-    for (let i = prices.length - 1; i >= prices.length - 30; i--) {
+    for (let i = prices.length - 1; i >= prices.length - arraylength; i--) {
       if (prices[i] > highestPrice) {
         previousPrice = highestPrice;
         previousIndex = highestIndex;
@@ -348,20 +372,20 @@ export class TradingIndicators {
     }
     
     return {
-      price: highestPrice,
+      highest: highestPrice,
       index: highestIndex,
       isTrendReversal: isTrendReversal
     };
   }
   
-  public detectBottom(prices: number[], reversalThreshold: number) {
+  public detectBottom(prices: number[], reversalThreshold: number, arraylength: number) {
     let lowestPrice = Infinity;
     let lowestIndex = -1;
     let previousPrice = Infinity;
     let previousIndex = -1;
     let isTrendReversal = false;
     
-    for (let i = prices.length - 1; i >= prices.length - 30; i--) {
+    for (let i = prices.length - 1; i >= prices.length - arraylength; i--) {
       if (prices[i] < lowestPrice) {
         previousPrice = lowestPrice;
         previousIndex = lowestIndex;
@@ -373,6 +397,7 @@ export class TradingIndicators {
           previousIndex >= 0 &&
           (previousPrice - lowestPrice) / previousPrice >= reversalThreshold
         ) {
+          
           isTrendReversal = true;
         } else {
           isTrendReversal = false;
@@ -381,7 +406,7 @@ export class TradingIndicators {
     }
     
     return {
-      price: lowestPrice,
+      lowest: lowestPrice,
       index: lowestIndex,
       isTrendReversal: isTrendReversal
     };
@@ -395,6 +420,7 @@ export class TradingIndicators {
     signalLine: number[],
     trendWeight: number,
     fifteenMinuteChart: number[],
+    fiveMinuteChart: number[],
     trends: number[],
     oneMinuteChart: number[],
     lastTrade: TxDetail
@@ -413,16 +439,18 @@ export class TradingIndicators {
     const lastPrice = oneMinuteChart[oneMinuteChart.length - 1];
     const percentageChange =
       ((lastPrice - previousPrice) / previousPrice) * 100;
-    const OneMinuteRsi = rsi(oneMinuteChart)
-    const lastOneMinuteRsi = OneMinuteRsi[OneMinuteRsi.length -1]
-    console.log(`Last one minute rsi: ${lastOneMinuteRsi}`)
+    const FiveMinuteRsi = rsi(fiveMinuteChart)
+    const lastFiveMinuteRsi = FiveMinuteRsi[FiveMinuteRsi.length -1]
+    console.log(`Last five minute rsi: ${lastFiveMinuteRsi}`)
     // Last trade
     const lastAction = lastTrade.action;
     const lastTradePrice = lastTrade.assetPrice;
     const lastBuy = lastAction === "buy" ? lastTradePrice : undefined;
-    const lastTradeTime = new Date(lastTrade.date);
+    const lastTradeTime = this.getTimeDifference(new Date(lastTrade.date))
     const lastRsi = this.rsi[this.rsi.length - 1];
-    const highLow = this.findHighAndLowValues(oneMinuteChart.slice(-180), 180);
+
+    const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
+    const FiveMinutedirection = this.determineDirection(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1], fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -2])
 
     // Confirm trend direction
     const isBullishTrend =
@@ -464,87 +492,83 @@ export class TradingIndicators {
     const isBullishConditionMet = bullishPeriods >= trendWeight;
     const isBearishConditionMet = bearishPeriods >= trendWeight;
 
-    let detectBottom: { isTrendReversal: any; price?: number; index?: number; }
-    let detectTop: { isTrendReversal: any; price?: number; index?: number; }
-
     switch (lastAction) {
       case "sell":
-        detectBottom = this.detectBottom(oneMinuteChart, 0.0001);
-        console.log(`Looking for a buy, Support level ${supportLevel}`);
-        console.log(detectBottom);
+        const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
+        const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
+        console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${FiveMinutedirection}`);
+        console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
           trade.tradeSignal = "Buy: Trend is consistently bullish";
           trade.tradeType = TradingMode.buy;
-        } else if (
-          isBullishCrossover &&
-          percentageChange >= priceJumpThreshold
-        ) {
+          return trade
+        }
+        if (isBullishCrossover && percentageChange >= priceJumpThreshold) {
           trade.tradeSignal = "Buy: PSAR crossed above EMA";
           trade.tradeType = TradingMode.buy;
-        } else if (isFlashBuySignal) {
+          return trade
+        }
+        if (isFlashBuySignal) {
           trade.tradeSignal = "Buy: Flash buy signal";
           trade.tradeType = TradingMode.buy;
-        } else if (percentageChange <= -priceDropThreshold && lastRsi <= 30) {
-          trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed(
-            2
-          )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+          return trade
+        } 
+        if (percentageChange <= -priceDropThreshold && lastRsi <= 30) {
+          trade.tradeSignal = `Buy: Sudden price drop detected (${percentageChange.toFixed( 2 )}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.buy;
-        } else if (
-          detectBottom.isTrendReversal && lastOneMinuteRsi <= 20
-        ) {
-          trade.tradeSignal =
-            "buy: Price approaching support level and bottom detected";
-          trade.tradeType = TradingMode.buy;
-        } else {
-          trade.tradeSignal = "No clear trading signal";
-          trade.tradeType = TradingMode.hold;
+          return trade
         }
-        console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
-        return trade;
-
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Downward' && lastRsi <=50 && lastPrice <= lastTradePrice) {
+          trade.tradeSignal = "buy: Price approaching support level and bottom detected";
+          trade.tradeType = TradingMode.buy;
+          return trade
+        } else {
+          trade.tradeSignal = "No clear treading signal";
+          console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
+          return trade
+        }
       case "buy": // last trade was a buy so look for a sell
-        detectTop = this.detectTop(oneMinuteChart, 0.001);
-        console.log(`Looking for a Sell, resistance level ${resistanceLevel}`);
-        console.log(detectTop);
+        const detectTop = this.detectTop(fiveMinuteChart, 0.0001, 30);
+        const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
+        console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${FiveMinutedirection}`); 
+        console.log(detectTop, detectRsiTop);
         if (isBearishConditionMet) {
           trade.tradeSignal = "Sell: Trend is consistently bearish";
           trade.tradeType = TradingMode.sell;
-        } else if (
-          isBearishCrossover &&
-          percentageChange >= -priceDropThreshold
-        ) {
+          return trade
+        } 
+        if ( isBearishCrossover &&
+          percentageChange >= -priceDropThreshold ) {
           trade.tradeSignal = "Sell: PSAR crossed below EMA";
           trade.tradeType = TradingMode.sell;
-        } else if (isFlashSellSignal) {
+          return trade
+        } 
+        if (isFlashSellSignal) {
           trade.tradeSignal = "Sell: Flash sell signal";
           trade.tradeType = TradingMode.sell;
-        } else if (percentageChange >= priceJumpThreshold && lastRsi >= 70) {
+          return trade
+        }
+        if (percentageChange >= priceJumpThreshold && lastRsi >= 70) {
           trade.tradeSignal = `Sell: Sudden price jump detected (${percentageChange.toFixed(
             2
           )}% increase), Last price: BTC $${lastPrice.toFixed(2)}`;
           trade.tradeType = TradingMode.sell;
-        } else if (
-          lastBuy &&
-          (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <=
-            -stopLossThreshold
-        ) {
-          trade.tradeSignal = `Sell: Stop loss triggered (${stopLossThreshold}% decrease), Last price: BTC $${lastPrice.toFixed(
-            2
-          )}`;
-          trade.tradeType = TradingMode.sell;
-        } else if (
-          detectTop.isTrendReversal && lastOneMinuteRsi >= 70
-        ) {
-          trade.tradeSignal =
-            "sell: Price approaching resistance level and top detected";
-          trade.tradeType = TradingMode.sell;
-        } else {
-          trade.tradeSignal = "No clear trading signal";
-          trade.tradeType = TradingMode.hold;
+          return trade
         }
-        if (lastPrice <= lastBuy) trade.tradeType = TradingMode.hold; // dont sell for less than what you paid for.
-        console.log(trade.tradeSignal);
-        return trade;
+        if ( lastBuy && (lastPrice - psar[psar.length - 1]) / psar[psar.length - 1] <= -stopLossThreshold  ) {
+          trade.tradeSignal = `Sell: Stop loss triggered (${stopLossThreshold}% decrease), Last price: BTC $${lastPrice.toFixed(2)}`;
+          trade.tradeType = TradingMode.sell;
+          return trade
+        }
+        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Upward' && lastRsi >=50 && lastPrice > lastTradePrice) {
+          trade.tradeSignal = "sell: Price approaching resistance level and top detected";
+          trade.tradeType = TradingMode.sell;
+          return trade
+        } else {
+          trade.tradeSignal = "No clear treading signal";
+          console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
+          return trade
+        }
     }
   }
 }
