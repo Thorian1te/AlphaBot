@@ -523,7 +523,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         } else {
-          trade.tradeSignal = "No clear treading signal";
+          trade.tradeSignal = `No clear treading signal, ${fifteenMinuteDirection}`;
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
@@ -565,7 +565,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         } else {
-          trade.tradeSignal = "No clear treading signal";
+          trade.tradeSignal = `No clear treading signal, ${fifteenMinuteDirection}`;
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
