@@ -11,8 +11,7 @@ import {
 
 export class TradingIndicators {
   public rsi: number[] = [];
-  private currentRsi: number[] = [];
-  private currentOneMinuteChart: number[] = [];
+  
   // ------------------------------------- Trading Indicators ----------------------------------------
 
   /**
@@ -433,7 +432,7 @@ export class TradingIndicators {
     let bullishPeriods = 0;
     let bearishPeriods = 0;
     const priceJumpThreshold = 5; // percentage change
-    const priceDropThreshold = 5; // percentage cahnge
+    const priceDropThreshold = 5; // percentage change
     const stopLossThreshold = 1;
     const previousPrice = fifteenMinuteChart[fifteenMinuteChart.length - 1];
     const lastPrice = oneMinuteChart[oneMinuteChart.length - 1];
@@ -449,8 +448,9 @@ export class TradingIndicators {
     const lastTradeTime = this.getTimeDifference(new Date(lastTrade.date))
     const lastRsi = this.rsi[this.rsi.length - 1];
 
-    const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
-    const FiveMinutedirection = this.determineDirection(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1], fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -2])
+    const fifteenMinuteChartLastThirty = this.getSma(fifteenMinuteChart.slice(-30), 1)
+    console.log(fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -1])
+    const fifteenMinuteDirection = this.determineDirection(fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -1], fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -2])
 
     // Confirm trend direction
     const isBullishTrend =
@@ -496,7 +496,7 @@ export class TradingIndicators {
       case "sell":
         const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
-        console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${FiveMinutedirection}`);
+        console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${fifteenMinuteDirection}`);
         console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
           trade.tradeSignal = "Buy: Trend is consistently bullish";
@@ -518,7 +518,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Downward' && lastRsi <=50 && lastPrice <= lastTradePrice) {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && fifteenMinuteDirection !== 'Downward' && lastRsi <=50 && lastPrice <= lastTradePrice) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
@@ -530,7 +530,7 @@ export class TradingIndicators {
       case "buy": // last trade was a buy so look for a sell
         const detectTop = this.detectTop(fiveMinuteChart, 0.0001, 30);
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
-        console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${FiveMinutedirection}`); 
+        console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${fifteenMinuteDirection}`); 
         console.log(detectTop, detectRsiTop);
         if (isBearishConditionMet) {
           trade.tradeSignal = "Sell: Trend is consistently bearish";
@@ -560,7 +560,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && FiveMinutedirection !== 'Upward' && lastRsi >=50 && lastPrice > lastTradePrice) {
+        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && fifteenMinuteDirection !== 'Upward' && lastRsi >=50 && lastPrice > lastTradePrice) {
           trade.tradeSignal = "sell: Price approaching resistance level and top detected";
           trade.tradeType = TradingMode.sell;
           return trade
