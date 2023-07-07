@@ -150,15 +150,21 @@ export class TradingIndicators {
     }
   }
 
-  public determineDirection(currentSMA: number, previousSMA: number): string {
-    if (currentSMA > previousSMA) {
+  public determineDirection(currentSMA: number, previousSMA: number, prices: number[]): string {
+    const priceChanges: number[] = [];
+    for (let i = 0; i < prices.length - 1; i++) {
+      priceChanges.push(prices[i + 1] - prices[i]);
+    }
+  
+    if (currentSMA > previousSMA && priceChanges.every(change => change >= 0)) {
       return "Upward";
-    } else if (currentSMA < previousSMA) {
+    } else if (currentSMA < previousSMA && priceChanges.every(change => change <= 0)) {
       return "Downward";
     } else {
       return "Stable";
     }
   }
+  
 
   /**
    *
@@ -450,7 +456,7 @@ export class TradingIndicators {
 
     const fifteenMinuteChartLastThirty = this.getSma(fifteenMinuteChart.slice(-30), 1)
     console.log(fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -1])
-    const fifteenMinuteDirection = this.determineDirection(fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -1], fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -2])
+    const fifteenMinuteDirection = this.determineDirection(fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -1], fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -2], fiveMinuteChart.slice(-12))
 
     // Confirm trend direction
     const isBullishTrend =
