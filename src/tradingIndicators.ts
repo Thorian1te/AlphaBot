@@ -456,7 +456,7 @@ export class TradingIndicators {
 
     const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
     console.log(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1])
-    const fifteenMinuteDirection = this.determineDirection(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1], fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -2], fiveMinuteChart.slice(-12))
+    const fifteenMinuteDirection = this.determineDirection(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1], fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -2], fiveMinuteChart.slice(-5))
 
     // Confirm trend direction
     const isBullishTrend =
