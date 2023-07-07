@@ -454,9 +454,9 @@ export class TradingIndicators {
     const lastTradeTime = this.getTimeDifference(new Date(lastTrade.date))
     const lastRsi = this.rsi[this.rsi.length - 1];
 
-    const fifteenMinuteChartLastThirty = this.getSma(fifteenMinuteChart.slice(-30), 1)
-    console.log(fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -1])
-    const fifteenMinuteDirection = this.determineDirection(fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -1], fifteenMinuteChartLastThirty[fifteenMinuteChartLastThirty.length -2], fiveMinuteChart.slice(-12))
+    const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
+    console.log(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1])
+    const fifteenMinuteDirection = this.determineDirection(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1], fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -2], fiveMinuteChart.slice(-12))
 
     // Confirm trend direction
     const isBullishTrend =
