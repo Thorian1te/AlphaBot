@@ -194,16 +194,15 @@ export class AlphaBot {
         console.log(bal.sbtc.formatedAssetString());
         console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
         console.log(bal.sbusd.formatedAssetString());
+        try {
+          const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+          const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
+          console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
+          console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
+        }  catch (error) { 
+          console.log(error)
+        }
       }
-      try {
-        const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
-        const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
-        console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
-        console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
-      }  catch (error) { 
-        console.log(error)
-      }
-    
       signal = await this.signal(this.fifteenMinuteChart, 15);
       this.signalTracker.push(`${signal.decision}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
       market = await this.checkWalletBal(signal);
