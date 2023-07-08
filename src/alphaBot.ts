@@ -397,10 +397,13 @@ export class AlphaBot {
     const percentageGained = this.percentageChangeFromTrade(lastAction, lastTradePrice)
     console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained.percentageChange}`)
 
+    // coingecko asset price 
+    const coingeckoPrice = await this.tradingIndicators.getCoinGeckoStats()
+
 
     console.log(`last trade ${lastAction}, ${lastTradePrice}`)
     // analyse ema sma and psar & mcad 
-    const tradeDecision = this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, this.fiveMinuteChart, psar.trends, this.oneMinuteChart, lastTrade )
+    const tradeDecision = this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, this.fiveMinuteChart, psar.trends, this.oneMinuteChart, lastTrade, coingeckoPrice)
     tradeSignal.decision = tradeDecision.tradeSignal
     tradeSignal.type = tradeDecision.tradeType
     return tradeSignal

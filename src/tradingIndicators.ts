@@ -8,6 +8,7 @@ import {
   TradingMode,
   TxDetail,
 } from "./types";
+import axios from "axios";
 
 export class TradingIndicators {
   public rsi: number[] = [];
@@ -164,6 +165,18 @@ export class TradingIndicators {
       return "Downward";
     } else {
       return "Stable";
+    }
+  }
+
+
+  public async getCoinGeckoStats(): Promise<number> {
+    try {
+      const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+      const btcPrice = response.data.bitcoin.usd;
+      return btcPrice;
+    } catch (error) {
+      console.error('Error retrieving BTC price:', error);
+      return null;
     }
   }
   
@@ -431,7 +444,8 @@ export class TradingIndicators {
     fiveMinuteChart: number[],
     trends: number[],
     oneMinuteChart: number[],
-    lastTrade: TxDetail
+    lastTrade: TxDetail,
+    lastBtcPriceOnCG: number
   ): TradeAnalysis {
     let trade: TradeAnalysis = {
       tradeSignal: "",
@@ -459,7 +473,7 @@ export class TradingIndicators {
 
     const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
     console.log(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1])
-    const fifteenMinuteDirection = this.determineDirection(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1], fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -2], fiveMinuteChart.slice(-3))
+    const fiveMinuteDirection = this.determineDirection(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1], fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -2], fiveMinuteChart.slice(-3))
 
     // Confirm trend direction
     const isBullishTrend =
@@ -498,6 +512,10 @@ export class TradingIndicators {
       bullishPeriods = 0;
     }
 
+    const difference = Math.abs(lastPrice - lastBtcPriceOnCG);
+    const percentDifference = (difference / lastTradePrice) * 100;
+    console.log(`Last asset price on Cex: ${lastBtcPriceOnCG} and % diff: ${percentDifference}`)
+
     const isBullishConditionMet = bullishPeriods >= trendWeight;
     const isBearishConditionMet = bearishPeriods >= trendWeight;
 
@@ -505,7 +523,7 @@ export class TradingIndicators {
       case "sell":
         const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
-        console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${fifteenMinuteDirection}`);
+        console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${fiveMinuteDirection}`);
         console.log(detectBottom, detectRsiBottom);
         if (isBullishConditionMet) {
           trade.tradeSignal = "Buy: Trend is consistently bullish";
@@ -527,19 +545,19 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && fifteenMinuteDirection !== 'Downward' && lastRsi <=50 && lastPrice <= lastTradePrice) {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && lastRsi <=50 && lastPrice <= lastTradePrice && percentDifference <= 1 ) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
         } else {
-          trade.tradeSignal = `No clear treading signal, ${fifteenMinuteDirection}`;
+          trade.tradeSignal = `No clear treading signal, ${fiveMinuteDirection}`;
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
       case "buy": // last trade was a buy so look for a sell
         const detectTop = this.detectTop(fiveMinuteChart, 0.0001, 30);
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
-        console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${fifteenMinuteDirection}`); 
+        console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${fiveMinuteDirection}`); 
         console.log(detectTop, detectRsiTop);
         if (isBearishConditionMet) {
           trade.tradeSignal = "Sell: Trend is consistently bearish";
@@ -569,12 +587,12 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && +lastTradeTime.timeInMinutes >= 30 && fifteenMinuteDirection !== 'Upward' && lastRsi >=50 && lastPrice > lastTradePrice) {
+        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && fiveMinuteDirection !== 'Upward' && lastRsi >=50 && lastPrice > lastTradePrice) {
           trade.tradeSignal = "sell: Price approaching resistance level and top detected";
           trade.tradeType = TradingMode.sell;
           return trade
         } else {
-          trade.tradeSignal = `No clear treading signal, ${fifteenMinuteDirection}`;
+          trade.tradeSignal = `No clear treading signal, ${fiveMinuteDirection}`;
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
