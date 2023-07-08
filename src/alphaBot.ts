@@ -190,9 +190,11 @@ export class AlphaBot {
         this.oneMinuteChart[this.oneMinuteChart.length - 1]
       );
       const bal = await this.getSynthBalance();
-      console.log(bal.sbtc.formatedAssetString());
-      console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
-      console.log(bal.sbusd.formatedAssetString());
+      if(bal ) {
+        console.log(bal.sbtc.formatedAssetString());
+        console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
+        console.log(bal.sbusd.formatedAssetString());
+      }
       try {
         const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
         const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
