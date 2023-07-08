@@ -155,15 +155,18 @@ export class TradingIndicators {
     for (let i = 0; i < prices.length - 1; i++) {
       priceChanges.push(prices[i + 1] - prices[i]);
     }
-    console.log(priceChanges[priceChanges.length -1])
-    if (currentSMA > previousSMA && priceChanges.every(change => change >= 0)) {
+  
+    const overallPriceDirection = priceChanges.every(change => change >= 0) ? "Upward" : "Downward";
+  
+    if (currentSMA > previousSMA && overallPriceDirection === "Upward") {
       return "Upward";
-    } else if (currentSMA < previousSMA && priceChanges.every(change => change <= 0)) {
+    } else if (currentSMA < previousSMA && overallPriceDirection === "Downward") {
       return "Downward";
     } else {
       return "Stable";
     }
   }
+  
   
 
   /**
