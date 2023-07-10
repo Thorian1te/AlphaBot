@@ -168,7 +168,7 @@ export class AlphaBot {
 
 
     // find tx records and add them to the cache
-    if(this.buyOrders.length > 1 && this.sellOrders.length > 1) {
+    if(this.buyOrders.length >= 1 && this.sellOrders.length >= 1) {
       if(this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date ) {
         if(this.txRecords.length < 1) this.txRecords.push(this.buyOrders.slice(-1)[0])
       } else {
