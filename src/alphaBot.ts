@@ -165,8 +165,7 @@ export class AlphaBot {
     let market: TradingMode;
     let signal: Signal;
 
-    await this.tradingIndicators.getRsi(this.fifteenMinuteChart);
-    await this.writeToFile(this.tradingIndicators.rsi, "rsi");
+
 
     // find tx records and add them to the cache
     if(this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date ) {
@@ -175,7 +174,7 @@ export class AlphaBot {
       if(this.txRecords.length < 1) this.txRecords.push(this.sellOrders.slice(-1)[0])
     }
 
-    const timeAlive = await this.getTimeDifference(this.botConfig.startTime) 
+    const timeAlive = this.getTimeDifference(this.botConfig.startTime) 
     // dont trade anything for first 1 minutes regardless of if there is a full chart history
     if (this.fiveMinuteChart.length - 1 < 72 || +timeAlive.timeInMinutes <= 1) {
       const percentageComplete = ((this.fiveMinuteChart.length - 1) / 72) * 100;
@@ -183,6 +182,8 @@ export class AlphaBot {
       console.log(log);
       await this.executeAction(TradingMode.hold)
     } else {
+      await this.tradingIndicators.getRsi(this.fifteenMinuteChart);
+      await this.writeToFile(this.tradingIndicators.rsi, "rsi");
       console.log(`Collecting trading signals for ${interval}`);
       console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
       console.log(
@@ -213,9 +214,13 @@ export class AlphaBot {
   public async dataCollectionMinute(start: Boolean, interval: ChartInterval) {
     this.asset = assetsBTC;
     console.log(`Collecting ${this.asset.ticker} pool price`);
-    await this.readFromFile(interval);
-    const highlow = this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart, 1080);
-    console.log(`One minute chart highs and lows`, highlow.high.slice(-1), highlow.low.slice(-1));
+    try {
+      await this.readFromFile(interval);
+      const highlow = this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart, 1080);
+      console.log(`One minute chart highs and lows`, highlow.high.slice(-1), highlow.low.slice(-1));
+    } catch (e) {
+      console.log( `No 1min chart found, starting from index 0`)
+    }
 
     while (start) {
       // One minute
