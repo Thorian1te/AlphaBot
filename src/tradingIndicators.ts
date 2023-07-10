@@ -529,16 +529,6 @@ export class TradingIndicators {
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${fiveMinuteDirection}`);
         console.log(detectBottom, detectRsiBottom);
-        if (isBullishConditionMet) {
-          trade.tradeSignal = "Buy: Trend is consistently bullish";
-          trade.tradeType = TradingMode.buy;
-          return trade
-        }
-        if (isBullishCrossover && percentageChange >= priceJumpThreshold) {
-          trade.tradeSignal = "Buy: PSAR crossed above EMA";
-          trade.tradeType = TradingMode.buy;
-          return trade
-        }
         if (isFlashBuySignal) {
           trade.tradeSignal = "Buy: Flash buy signal";
           trade.tradeType = TradingMode.buy;
@@ -563,17 +553,6 @@ export class TradingIndicators {
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${fiveMinuteDirection}`); 
         console.log(detectTop, detectRsiTop);
-        if (isBearishConditionMet) {
-          trade.tradeSignal = "Sell: Trend is consistently bearish";
-          trade.tradeType = TradingMode.sell;
-          return trade
-        } 
-        if ( isBearishCrossover &&
-          percentageChange >= -priceDropThreshold ) {
-          trade.tradeSignal = "Sell: PSAR crossed below EMA";
-          trade.tradeType = TradingMode.sell;
-          return trade
-        } 
         if (isFlashSellSignal) {
           trade.tradeSignal = "Sell: Flash sell signal";
           trade.tradeType = TradingMode.sell;
