@@ -168,10 +168,12 @@ export class AlphaBot {
 
 
     // find tx records and add them to the cache
-    if(this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date ) {
-      if(this.txRecords.length < 1) this.txRecords.push(this.buyOrders.slice(-1)[0])
-    } else {
-      if(this.txRecords.length < 1) this.txRecords.push(this.sellOrders.slice(-1)[0])
+    if(this.buyOrders.length > 1 && this.sellOrders.length > 1) {
+      if(this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date ) {
+        if(this.txRecords.length < 1) this.txRecords.push(this.buyOrders.slice(-1)[0])
+      } else {
+        if(this.txRecords.length < 1) this.txRecords.push(this.sellOrders.slice(-1)[0])
+      }
     }
 
     const timeAlive = this.getTimeDifference(this.botConfig.startTime) 
@@ -489,24 +491,40 @@ export class AlphaBot {
 
   // Read previous trades 
   private async readLastSellTrade() {
-    const result: TxDetail = JSON.parse(
-      fs.readFileSync(`sellBTCtxRecords.json`, "utf8")
-    );
-    // make sure its a unique trade 
-    if(this.sellOrders.slice(-1)[0] != result){
-      this.sellOrders.push(result)
+    try {
+      const result: TxDetail = JSON.parse(
+        fs.readFileSync(`sellBTCtxRecords.json`, "utf8")
+      );
+      // make sure its a unique trade 
+      if(this.sellOrders.slice(-1)[0] != result){
+        this.sellOrders.push(result)
+      }
+    } catch (err) {
+      let txRecord: TxDetail = {
+        date: new Date(),
+        action: TradingMode.sell,
+        asset: assetsBUSD,
+        amount: '',
+        assetPrice: 0,
+        result: 'New bot instance, look for a buy',
+        rsi: 0,
+      };
+      this.sellOrders.push(txRecord)
     }
 
   }
   private async readLastBuyTrade() {
-    const result: TxDetail = JSON.parse(
-      fs.readFileSync(`buyBUSDtxRecords.json`, "utf8")
-    ); 
-    // make sure its a unique trade 
-    if(this.buyOrders.slice(-1)[0] != result){
-      this.buyOrders.push(result)
+    try{
+      const result: TxDetail = JSON.parse(
+        fs.readFileSync(`buyBUSDtxRecords.json`, "utf8")
+      ); 
+      // make sure its a unique trade 
+      if(this.buyOrders.slice(-1)[0] != result){
+        this.buyOrders.push(result)
+      }
+    } catch (err) {
+      console.log(`No previous trades found`)
     }
-
   }
   // -------------------------------- Wallet actions ------------------------------------
 
