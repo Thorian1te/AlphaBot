@@ -491,7 +491,6 @@ export class AlphaBot {
 
   // Read previous trades 
   private async readLastSellTrade() {
-    try {
       const result: TxDetail = JSON.parse(
         fs.readFileSync(`sellBTCtxRecords.json`, "utf8")
       );
@@ -499,22 +498,11 @@ export class AlphaBot {
       if(this.sellOrders.slice(-1)[0] != result){
         this.sellOrders.push(result)
       }
-    } catch (err) {
-      let txRecord: TxDetail = {
-        date: new Date(),
-        action: TradingMode.sell,
-        asset: assetsBUSD,
-        amount: '',
-        assetPrice: 0,
-        result: 'New bot instance, look for a buy',
-        rsi: 0,
-      };
-      this.sellOrders.push(txRecord)
-    }
+
 
   }
   private async readLastBuyTrade() {
-    try{
+
       const result: TxDetail = JSON.parse(
         fs.readFileSync(`buyBUSDtxRecords.json`, "utf8")
       ); 
@@ -522,9 +510,7 @@ export class AlphaBot {
       if(this.buyOrders.slice(-1)[0] != result){
         this.buyOrders.push(result)
       }
-    } catch (err) {
-      console.log(`No previous trades found`)
-    }
+
   }
   // -------------------------------- Wallet actions ------------------------------------
 
