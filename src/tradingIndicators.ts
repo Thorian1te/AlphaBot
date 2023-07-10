@@ -151,7 +151,7 @@ export class TradingIndicators {
     }
   }
 
-  public determineDirection(currentSMA: number, previousSMA: number, prices: number[]): string {
+  public determineDirection(currentPrice: number, previousPrice: number,  prices: number[]): string {
     const priceChanges: number[] = [];
     for (let i = 0; i < prices.length - 1; i++) {
       priceChanges.push(prices[i + 1] - prices[i]);
@@ -159,9 +159,9 @@ export class TradingIndicators {
   
     const overallPriceDirection = priceChanges.every(change => change >= 0) ? "Upward" : "Downward";
   
-    if (currentSMA > previousSMA && overallPriceDirection === "Upward") {
+    if (currentPrice > previousPrice && overallPriceDirection === "Upward") {
       return "Upward";
-    } else if (currentSMA < previousSMA && overallPriceDirection === "Downward") {
+    } else if (currentPrice < previousPrice && overallPriceDirection === "Downward") {
       return "Downward";
     } else {
       return "Stable";
@@ -471,9 +471,9 @@ export class TradingIndicators {
     const lastTradeTime = this.getTimeDifference(new Date(lastTrade.date))
     const lastRsi = this.rsi[this.rsi.length - 1];
 
-    const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
-    console.log(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1])
-    const fiveMinuteDirection = this.determineDirection(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1], fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -2], fiveMinuteChart.slice(-3))
+    // const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
+    // console.log(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1])
+    const fiveMinuteDirection = this.determineDirection(fiveMinuteChart[fiveMinuteChart.length -1], fiveMinuteChart[fiveMinuteChart.length -2], fiveMinuteChart.slice(-3))
 
     // Confirm trend direction
     const isBullishTrend =
@@ -550,7 +550,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         } else {
-          trade.tradeSignal = `No clear treading signal, ${fiveMinuteDirection}`;
+          trade.tradeSignal = `No clear trading signal, ${fiveMinuteDirection}`;
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
@@ -592,7 +592,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         } else {
-          trade.tradeSignal = `No clear treading signal, ${fiveMinuteDirection}`;
+          trade.tradeSignal = `No clear trading signal, ${fiveMinuteDirection}`;
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
@@ -607,7 +607,7 @@ export class TradingIndicators {
             trade.tradeType = TradingMode.buy;
             return trade
           } else {
-            trade.tradeSignal = `No clear treading signal, ${fiveMinuteDirection}`;
+            trade.tradeSignal = `No clear trading signal, ${fiveMinuteDirection}`;
             console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
             return trade
           }
