@@ -158,7 +158,7 @@ export class TradingIndicators {
     }
   
     const overallPriceDirection = priceChanges.every(change => change >= 0) ? "Upward" : "Downward";
-    console.log(currentPrice, previousPrice)
+    console.log(currentPrice, previousPrice, overallPriceDirection)
     if (currentPrice > previousPrice && overallPriceDirection === "Upward") {
       return "Upward";
     } else if (currentPrice < previousPrice && overallPriceDirection === "Downward") {
