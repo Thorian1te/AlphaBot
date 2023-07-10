@@ -151,7 +151,7 @@ export class TradingIndicators {
     }
   }
 
-  public determineDirection(currentPrice: number, previousPrice: number,  prices: number[]): string {
+  public determineDirection(currentPrice: number, previousPrice: number,  prices: number[], lastPrice: number): string {
     const priceChanges: number[] = [];
     for (let i = 0; i < prices.length - 1; i++) {
       priceChanges.push(prices[i + 1] - prices[i]);
@@ -159,10 +159,14 @@ export class TradingIndicators {
   
     const overallPriceDirection = priceChanges.every(change => change >= 0) ? "Upward" : "Downward";
     console.log(currentPrice, previousPrice, overallPriceDirection)
-    if (currentPrice > previousPrice && overallPriceDirection === "Upward") {
+    if (overallPriceDirection === "Upward") {
       return "Upward";
-    } else if (currentPrice < previousPrice && overallPriceDirection === "Downward") {
+    } else if (overallPriceDirection === "Downward") {
       return "Downward";
+    } else if (lastPrice < currentPrice) {
+      return "Downward"
+    } else if (lastPrice > currentPrice) {
+      return "Upward"
     } else {
       return "Stable";
     }
@@ -473,7 +477,7 @@ export class TradingIndicators {
 
     // const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
     // console.log(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1])
-    const fiveMinuteDirection = this.determineDirection(fiveMinuteChart[fiveMinuteChart.length -1], fiveMinuteChart[fiveMinuteChart.length -2], fiveMinuteChart.slice(-3))
+    const fiveMinuteDirection = this.determineDirection(fiveMinuteChart[fiveMinuteChart.length -1], fiveMinuteChart[fiveMinuteChart.length -2], fiveMinuteChart.slice(-3), lastPrice)
 
     // Confirm trend direction
     const isBullishTrend =
