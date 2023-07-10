@@ -118,12 +118,10 @@ export class AlphaBot {
     await this.walletSetup();
     console.log("Running AlphaBot....");
     this.schedule();
-    try {
-      this.readLastBuyTrade()
-      this.readLastSellTrade()
-    } catch (error) {
-      console.log(`Error no previous trades found`)
-    }
+
+    this.readLastBuyTrade()
+    this.readLastSellTrade()
+    
     while (this.botConfig.botMode !== BotMode.stop) {
       let action: TradingMode;
       const tradingHalted = await this.isTradingHalted();
@@ -174,6 +172,17 @@ export class AlphaBot {
       } else {
         if(this.txRecords.length < 1) this.txRecords.push(this.sellOrders.slice(-1)[0])
       }
+    } else {
+      let Empty: TxDetail = {
+        date: new Date(),
+        action: TradingMode.paused,
+        asset: assetsBUSD,
+        amount: '',
+        assetPrice: this.oneMinuteChart[this.oneMinuteChart.length - 1],
+        result: 'Empty',
+        rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
+      };
+      this.txRecords.push(Empty)
     }
 
     const timeAlive = this.getTimeDifference(this.botConfig.startTime) 
@@ -429,13 +438,14 @@ export class AlphaBot {
   
     const percentageChange = ((assetPrice - lastTradePrice) / lastTradePrice);
     let direction = "";
+
   
     if (lastTradeAction === "buy") {
       direction = percentageChange >= 0 ? "positive" : "negative";
     } else if (lastTradeAction === "sell") {
       direction = percentageChange <= 0 ? "positive" : "negative";
     } else {
-      throw new Error("Invalid last trade action");
+      ("Invalid last trade action");
     }
   
     return { percentageChange, direction };
@@ -491,6 +501,7 @@ export class AlphaBot {
 
   // Read previous trades 
   private async readLastSellTrade() {
+    try {
       const result: TxDetail = JSON.parse(
         fs.readFileSync(`sellBTCtxRecords.json`, "utf8")
       );
@@ -498,11 +509,13 @@ export class AlphaBot {
       if(this.sellOrders.slice(-1)[0] != result){
         this.sellOrders.push(result)
       }
-
-
+    } catch (error) {
+      console.log(`No Previous trades found`)
+    }
   }
   private async readLastBuyTrade() {
 
+    try {
       const result: TxDetail = JSON.parse(
         fs.readFileSync(`buyBUSDtxRecords.json`, "utf8")
       ); 
@@ -510,7 +523,9 @@ export class AlphaBot {
       if(this.buyOrders.slice(-1)[0] != result){
         this.buyOrders.push(result)
       }
-
+    } catch (error) {
+      console.log(`No previous trades found`)
+    }
   }
   // -------------------------------- Wallet actions ------------------------------------
 

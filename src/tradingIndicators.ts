@@ -596,6 +596,21 @@ export class TradingIndicators {
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
+        case "paused":
+          if ( isBearishCrossover &&
+            percentageChange >= -priceDropThreshold ) {
+            trade.tradeSignal = "Sell: PSAR crossed below EMA";
+            trade.tradeType = TradingMode.sell;
+            return trade
+          } else if  (isBullishCrossover && percentageChange >= priceJumpThreshold) {
+            trade.tradeSignal = "Buy: PSAR crossed above EMA";
+            trade.tradeType = TradingMode.buy;
+            return trade
+          } else {
+            trade.tradeSignal = `No clear treading signal, ${fiveMinuteDirection}`;
+            console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
+            return trade
+          }
     }
   }
 }
