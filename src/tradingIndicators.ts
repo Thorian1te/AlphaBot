@@ -462,18 +462,6 @@ export class TradingIndicators {
       increasingResult = "The price is relatively stable.";
     }
   
-    // Compare different SMA periods
-    const shortTermSMA = smaValues[smaValues.length - 1];
-    const longTermSMA = smaValues[0];
-  
-    if (shortTermSMA > longTermSMA) {
-      increasingResult += " Bullish signal: Short-term SMA is crossing above the long-term SMA.";
-    } else if (shortTermSMA < longTermSMA) {
-      decreasingResult += " Bearish signal: Short-term SMA is crossing below the long-term SMA.";
-    } else {
-      increasingResult += " No significant crossover.";
-    }
-  
     // Calculate the distance between price and SMA
     const distance = currentPrice - smaValues[smaValues.length - 1];
   
@@ -499,6 +487,7 @@ export class TradingIndicators {
   
     return result;
   }
+  
   
   public determineSignal(analysisResult: string): string {
     if (analysisResult.includes("The price is increasing quickly.") &&
