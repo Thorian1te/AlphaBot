@@ -573,7 +573,7 @@ export class TradingIndicators {
 
 
 
-    this.analyzeSMA(fiveMinuteSma, lastPrice)
+    console.log(this.analyzeSMA(fiveMinuteSma, lastPrice))
 
     switch (lastAction) {
       case "sell":
