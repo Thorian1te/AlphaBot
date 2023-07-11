@@ -444,14 +444,14 @@ export class TradingIndicators {
     // Determine if the price is increasing or decreasing quickly/slowly
     let result: string;
     if (slope > 0) {
-      result = "The price is increasing.";
+      result = "The price is increasing";
       if (slope > 5) {
         result += " quickly.";
       } else {
         result += " slowly.";
       }
     } else if (slope < 0) {
-      result = "The price is decreasing.";
+      result = "The price is decreasing ";
       if (slope < -5) {
         result += " quickly.";
       } else {
