@@ -442,23 +442,24 @@ export class TradingIndicators {
     const slope = smaValues[smaValues.length - 1] - smaValues[0];
   
     // Determine if the price is increasing or decreasing quickly/slowly
-    let result: string;
+    let increasingResult = "";
+    let decreasingResult = "";
     if (slope > 0) {
-      result = "The price is increasing";
+      increasingResult = "The price is increasing";
       if (slope > 5) {
-        result += " quickly.";
+        increasingResult += " quickly.";
       } else {
-        result += " slowly.";
+        increasingResult += " slowly.";
       }
     } else if (slope < 0) {
-      result = "The price is decreasing ";
+      decreasingResult = "The price is decreasing ";
       if (slope < -5) {
-        result += " quickly.";
+        decreasingResult += " quickly.";
       } else {
-        result += " slowly.";
+        decreasingResult += " slowly.";
       }
     } else {
-      result = "The price is relatively stable.";
+      increasingResult = "The price is relatively stable.";
     }
   
     // Compare different SMA periods
@@ -466,28 +467,39 @@ export class TradingIndicators {
     const longTermSMA = smaValues[0];
   
     if (shortTermSMA > longTermSMA) {
-      result += " Bullish signal: Short-term SMA is crossing above the long-term SMA.";
+      increasingResult += " Bullish signal: Short-term SMA is crossing above the long-term SMA.";
     } else if (shortTermSMA < longTermSMA) {
-      result += " Bearish signal: Short-term SMA is crossing below the long-term SMA.";
+      decreasingResult += " Bearish signal: Short-term SMA is crossing below the long-term SMA.";
     } else {
-      result += " No significant crossover.";
+      increasingResult += " No significant crossover.";
     }
   
     // Calculate the distance between price and SMA
-
     const distance = currentPrice - smaValues[smaValues.length - 1];
   
     if (distance > 0) {
-      result += ` The price is ${distance} above the SMA.`;
+      increasingResult += ` The price is ${distance} above the SMA.`;
     } else if (distance < 0) {
-      result += ` The price is ${Math.abs(distance)} below the SMA.`;
+      decreasingResult += ` The price is ${Math.abs(distance)} below the SMA.`;
     } else {
-      result += " The price is at the SMA.";
+      increasingResult += " The price is at the SMA.";
+    }
+  
+    // Combine the results
+    let result = "";
+    if (increasingResult) {
+      result += increasingResult;
+    }
+    if (decreasingResult) {
+      if (result) {
+        result += " ";
+      }
+      result += decreasingResult;
     }
   
     return result;
   }
-
+  
   public determineSignal(analysisResult: string): string {
     if (analysisResult.includes("The price is increasing quickly.") &&
         analysisResult.includes("Bullish signal: Short-term SMA is crossing above the long-term SMA.")) {
