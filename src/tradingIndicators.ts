@@ -446,16 +446,16 @@ export class TradingIndicators {
     if (slope > 0) {
       result = "The price is increasing.";
       if (slope > 5) {
-        result += " The price is increasing quickly.";
+        result += " quickly.";
       } else {
-        result += " The price is increasing slowly.";
+        result += " slowly.";
       }
     } else if (slope < 0) {
       result = "The price is decreasing.";
       if (slope < -5) {
-        result += " The price is decreasing quickly.";
+        result += " quickly.";
       } else {
-        result += " The price is decreasing slowly.";
+        result += " slowly.";
       }
     } else {
       result = "The price is relatively stable.";
@@ -486,6 +486,18 @@ export class TradingIndicators {
     }
   
     return result;
+  }
+
+  public determineSignal(analysisResult: string): string {
+    if (analysisResult.includes("The price is increasing quickly.") &&
+        analysisResult.includes("Bullish signal: Short-term SMA is crossing above the long-term SMA.")) {
+      return "hold";
+    } else if (analysisResult.includes("The price is decreasing quickly.") &&
+               analysisResult.includes("Bearish signal: Short-term SMA is crossing below the long-term SMA.")) {
+      return "hold";
+    } else {
+      return "trade";
+    }
   }
 
   public analyzeTradingSignals(
@@ -573,8 +585,9 @@ export class TradingIndicators {
 
 
 
-    console.log(this.analyzeSMA(fiveMinuteSma, lastPrice))
-
+    const smaAnalysis = this.analyzeSMA(fiveMinuteSma, lastPrice)
+    const smaSignal = this.determineSignal(smaAnalysis)
+    console.log(smaSignal, smaAnalysis)
     switch (lastAction) {
       case "sell":
         const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
