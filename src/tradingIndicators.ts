@@ -605,7 +605,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && fiveMinuteDirection !== 'Stable' && lastRsi <=50 && percentDifference <= 0.5 ) {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && fiveMinuteDirection !== 'Stable' && lastFiveMinuteRsi <=50 && percentDifference <= 0.5 ) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
@@ -636,7 +636,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && fiveMinuteDirection !== 'Upward' && fiveMinuteDirection !== 'Stable' && lastRsi >=60 && lastPrice > lastTradePrice) {
+        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && fiveMinuteDirection !== 'Upward' && fiveMinuteDirection !== 'Stable' && lastFiveMinuteRsi >=60 && lastPrice > lastTradePrice) {
           trade.tradeSignal = "sell: Price approaching resistance level and top detected";
           trade.tradeType = TradingMode.sell;
           return trade
