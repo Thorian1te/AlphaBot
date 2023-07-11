@@ -605,7 +605,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && fiveMinuteDirection !== 'Stable' && lastRsi <=50 && percentDifference <= 0.3 ) {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && fiveMinuteDirection !== 'Stable' && lastRsi <=50 && percentDifference <= 0.5 ) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
