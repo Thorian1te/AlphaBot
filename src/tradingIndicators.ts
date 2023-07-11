@@ -437,6 +437,57 @@ export class TradingIndicators {
     };
   }
 
+  public analyzeSMA(smaValues: number[], currentPrice: number): string {
+    // Calculate the slope of SMA
+    const slope = smaValues[smaValues.length - 1] - smaValues[0];
+  
+    // Determine if the price is increasing or decreasing quickly/slowly
+    let result: string;
+    if (slope > 0) {
+      result = "The price is increasing.";
+      if (slope > 5) {
+        result += " The price is increasing quickly.";
+      } else {
+        result += " The price is increasing slowly.";
+      }
+    } else if (slope < 0) {
+      result = "The price is decreasing.";
+      if (slope < -5) {
+        result += " The price is decreasing quickly.";
+      } else {
+        result += " The price is decreasing slowly.";
+      }
+    } else {
+      result = "The price is relatively stable.";
+    }
+  
+    // Compare different SMA periods
+    const shortTermSMA = smaValues[smaValues.length - 1];
+    const longTermSMA = smaValues[0];
+  
+    if (shortTermSMA > longTermSMA) {
+      result += " Bullish signal: Short-term SMA is crossing above the long-term SMA.";
+    } else if (shortTermSMA < longTermSMA) {
+      result += " Bearish signal: Short-term SMA is crossing below the long-term SMA.";
+    } else {
+      result += " No significant crossover.";
+    }
+  
+    // Calculate the distance between price and SMA
+
+    const distance = currentPrice - smaValues[smaValues.length - 1];
+  
+    if (distance > 0) {
+      result += ` The price is ${distance} above the SMA.`;
+    } else if (distance < 0) {
+      result += ` The price is ${Math.abs(distance)} below the SMA.`;
+    } else {
+      result += " The price is at the SMA.";
+    }
+  
+    return result;
+  }
+
   public analyzeTradingSignals(
     psar: number[],
     sma: number[],
@@ -475,7 +526,7 @@ export class TradingIndicators {
     const lastTradeTime = this.getTimeDifference(new Date(lastTrade.date))
     const lastRsi = this.rsi[this.rsi.length - 1];
 
-    // const fiveMinuteChartLastThirty = this.getSma(fiveMinuteChart.slice(-30), 1)
+    const fiveMinuteSma = this.getSma(fiveMinuteChart.slice(-200), 1)
     // console.log(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1])
     const fiveMinuteDirection = this.determineDirection(fiveMinuteChart[fiveMinuteChart.length -1], fiveMinuteChart[fiveMinuteChart.length -2], fiveMinuteChart.slice(-3), lastPrice)
 
@@ -520,8 +571,9 @@ export class TradingIndicators {
     const percentDifference = (difference / lastTradePrice) * 100;
     console.log(`Last asset price on Cex: ${lastBtcPriceOnCG} and % diff: ${percentDifference}`)
 
-    const isBullishConditionMet = bullishPeriods >= trendWeight;
-    const isBearishConditionMet = bearishPeriods >= trendWeight;
+
+
+    this.analyzeSMA(fiveMinuteSma, lastPrice)
 
     switch (lastAction) {
       case "sell":
@@ -539,7 +591,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && lastRsi <=50 && percentDifference <= 1 ) {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && fiveMinuteDirection !== 'Stable' && lastRsi <=50 && percentDifference <= 0.3 ) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
@@ -570,7 +622,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && fiveMinuteDirection !== 'Upward' && lastRsi >=60 && lastPrice > lastTradePrice) {
+        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && fiveMinuteDirection !== 'Upward' && fiveMinuteDirection !== 'Stable' && lastRsi >=60 && lastPrice > lastTradePrice) {
           trade.tradeSignal = "sell: Price approaching resistance level and top detected";
           trade.tradeType = TradingMode.sell;
           return trade
