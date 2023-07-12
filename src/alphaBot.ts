@@ -26,7 +26,6 @@ import {
   BotInfo,
   BotMode,
   ChartInterval,
-  MacdResult,
   Signal,
   SwapDetail,
   SynthBalance,
@@ -41,7 +40,7 @@ require("dotenv").config();
 
 const assetsBUSD = assetFromStringEx(`BNB/BUSD-BD1`);
 const assetsBTC = assetFromStringEx(`BTC/BTC`);
-const assetsBTCB = assetFromStringEx(`BNB/BTCB-1DE`)
+
 
 const oneMinuteInMs = 60 * 1000; // 1 minute in milliseconds
 
@@ -204,13 +203,10 @@ export class AlphaBot {
       const bal = await this.getSynthBalance();
       if(bal ) {
         console.log(bal.sbtc.formatedAssetString());
-        console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`);
         console.log(bal.sbusd.formatedAssetString());
         try {
           const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
-          const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
           console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
-          console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
         }  catch (error) { 
           console.log(error)
         }
@@ -653,7 +649,6 @@ export class AlphaBot {
   private async getSynthBalance(): Promise<SynthBalance> {
     let synthbtc = assetsBTC;
     let synthBUSD = assetsBUSD;
-    let synthBTCB = assetsBTCB;
 
     try {
       const address = this.wallet.clients[THORChain].getAddress();
@@ -664,14 +659,10 @@ export class AlphaBot {
       const busdBal = balance.find(
         (asset) => asset.asset.ticker === synthBUSD.ticker
       ) ? balance.find((asset) => asset.asset.ticker === synthBUSD.ticker).amount : null;
-      const btcbBal = balance.find(
-        (asset) => asset.asset.ticker === synthBTCB.ticker
-      ) ? balance.find((asset) => asset.asset.ticker === synthBTCB.ticker).amount : null
       
       const sbalance: SynthBalance = {
         sbusd: new CryptoAmount(busdBal, assetsBUSD),
         sbtc: new CryptoAmount(bitcoinBal, assetsBTC),
-        sbtcb: btcbBal !== null ?  new CryptoAmount(btcbBal, assetsBTCB) : new CryptoAmount(baseAmount(0), assetsBTCB) ,
       };
       return sbalance;
     } catch (error) {
@@ -707,9 +698,7 @@ export class AlphaBot {
       console.log(bal.sbtc.formatedAssetString());
       console.log(bal.sbusd.formatedAssetString());
       const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
-      const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD);
       console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
-      console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
     }catch (err) {console.log(`Can't fetch balances`)}
 
     console.log(`Buy records: `, this.buyOrders.length);
