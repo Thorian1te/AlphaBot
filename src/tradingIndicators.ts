@@ -586,7 +586,7 @@ export class TradingIndicators {
     const smaAnalysis = this.analyzeSMA(fiveMinuteSma, lastPrice)
     const smaSignal = this.determineSignal(smaAnalysis)
     console.log(smaSignal, smaAnalysis)
-    console.log(`Five minute direction ${fiveMinuteDirection}, fifteen minute direction ${fifteenminuteDirection} half hour direction ${halfHourDirection}, 1 hour direction ${oneHourDirection}`)
+    console.log(`Five minute direction ${fiveMinuteDirection}, \nfifteen minute direction ${fifteenminuteDirection} \nhalf hour direction ${halfHourDirection}, \n1 hour direction ${oneHourDirection}`)
     switch (lastAction) {
       case "sell":
         const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
@@ -603,7 +603,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && fiveMinuteDirection !== 'Stable' && lastFiveMinuteRsi <=50 && percentDifference <= 0.5 ) {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && lastFiveMinuteRsi <=50 && percentDifference <= 0.5 ) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
@@ -634,7 +634,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && fiveMinuteDirection !== 'Upward' && fiveMinuteDirection !== 'Stable' && lastRsi >= 60 && lastPrice > lastTradePrice) {
+        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && fiveMinuteDirection !== 'Upward' && lastRsi >= 60 && lastPrice > lastTradePrice) {
           trade.tradeSignal = "sell: Price approaching resistance level and top detected";
           trade.tradeType = TradingMode.sell;
           return trade
