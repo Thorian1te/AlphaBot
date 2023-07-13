@@ -513,7 +513,9 @@ export class TradingIndicators {
     trends: number[],
     oneMinuteChart: number[],
     lastTrade: TxDetail,
-    lastBtcPriceOnCG: number
+    lastBtcPriceOnCG: number,
+    halfHourChart: number[],
+    oneHourChart: number[],
   ): TradeAnalysis {
     let trade: TradeAnalysis = {
       tradeSignal: "",
@@ -542,7 +544,9 @@ export class TradingIndicators {
     const fiveMinuteSma = this.getSma(fiveMinuteChart.slice(-200), 1)
     // console.log(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1])
     const fiveMinuteDirection = this.determineDirection(fiveMinuteChart[fiveMinuteChart.length -1], fiveMinuteChart[fiveMinuteChart.length -2], oneMinuteChart.slice(-5), lastPrice)
-
+    const fifteenminuteDirection = this.determineDirection(fifteenMinuteChart[fifteenMinuteChart.length -1 ], fifteenMinuteChart[fifteenMinuteChart.length -2], fiveMinuteChart.slice(-3), lastPrice)
+    const halfHourDirection = this.determineDirection(halfHourChart[halfHourChart.length -1 ], halfHourChart[halfHourChart.length -2], fifteenMinuteChart.slice(-2), lastPrice)
+    const oneHourDirection = this.determineDirection(oneHourChart[oneHourChart.length -1 ], oneHourChart[oneHourChart.length -2], halfHourChart.slice(-2), lastPrice)
     // Confirm trend direction
     const isBullishTrend =
       psar[psar.length - 1] < sma[sma.length - 1] &&
@@ -589,6 +593,7 @@ export class TradingIndicators {
     const smaAnalysis = this.analyzeSMA(fiveMinuteSma, lastPrice)
     const smaSignal = this.determineSignal(smaAnalysis)
     console.log(smaSignal, smaAnalysis)
+    console.log(`Five minute direction ${fiveMinuteDirection}, fifteen minute direction ${fifteenminuteDirection} half hour direction ${halfHourDirection}, 1 hour direction ${oneHourDirection}`)
     switch (lastAction) {
       case "sell":
         const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
