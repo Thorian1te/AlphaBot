@@ -416,7 +416,7 @@ export class AlphaBot {
 
     console.log(`last trade ${lastAction}, ${lastTradePrice}`)
     // analyse ema sma and psar & mcad 
-    const tradeDecision = this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, this.fiveMinuteChart, psar.trends, this.oneMinuteChart, lastTrade, coingeckoPrice, this.OneHourChart, this.halfHourChart)
+    const tradeDecision = this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, this.fiveMinuteChart, psar.trends, this.oneMinuteChart, lastTrade, coingeckoPrice, this.halfHourChart, this.OneHourChart)
     tradeSignal.decision = tradeDecision.tradeSignal
     tradeSignal.type = tradeDecision.tradeType
     return tradeSignal
