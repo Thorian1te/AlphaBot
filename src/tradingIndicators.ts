@@ -587,6 +587,7 @@ export class TradingIndicators {
     const smaSignal = this.determineSignal(smaAnalysis)
     console.log(smaSignal, smaAnalysis)
     console.log(`Five minute direction ${fiveMinuteDirection}, \nfifteen minute direction ${fifteenminuteDirection} \nhalf hour direction ${halfHourDirection}, \n1 hour direction ${oneHourDirection}`)
+    
     switch (lastAction) {
       case "sell":
         const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
@@ -603,15 +604,21 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fiveMinuteDirection !== 'Downward' && lastFiveMinuteRsi <=50 && percentDifference <= 0.5 ) {
-          trade.tradeSignal = "buy: Price approaching support level and bottom detected";
-          trade.tradeType = TradingMode.buy;
+        if(fiveMinuteDirection === "UpWard" && fifteenminuteDirection === "Stable" && halfHourDirection === "Stable" && oneHourDirection !== "Upward" && lastFiveMinuteRsi <= 50 && percentDifference <= 0.5) {
+          trade.tradeSignal = `buy: Directions says so`;
+          trade.tradeType = TradingMode.sell;
           return trade
         } else {
           trade.tradeSignal = `No clear trading signal, ${fiveMinuteDirection}`;
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
+
+        // if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fifteenminuteDirection === "Upward" && lastFiveMinuteRsi <= 50 && percentDifference <= 0.5 ) {
+        //   trade.tradeSignal = "buy: Price approaching support level and bottom detected";
+        //   trade.tradeType = TradingMode.buy;
+        //   return trade
+        // }
       case "buy": // last trade was a buy so look for a sell
         const detectTop = this.detectTop(fiveMinuteChart, 0.0001, 30);
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
@@ -634,8 +641,8 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && fiveMinuteDirection !== 'Upward' && lastRsi >= 60 && lastPrice > lastTradePrice) {
-          trade.tradeSignal = "sell: Price approaching resistance level and top detected";
+        if(fiveMinuteDirection === "Downward" && fifteenminuteDirection === "Stable" && halfHourDirection === "Stable" && oneHourDirection !== "Downward" && lastRsi >= 60 && lastPrice > lastTradePrice ) {
+          trade.tradeSignal = `sell: Directions says so`;
           trade.tradeType = TradingMode.sell;
           return trade
         } else {
@@ -643,6 +650,12 @@ export class TradingIndicators {
           console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
           return trade
         }
+        // if (detectTop.isTrendReversal && detectRsiTop.isTrendReversal && lastRsi >= 60 && lastPrice > lastTradePrice) {
+        //   trade.tradeSignal = "sell: Price approaching resistance level and top detected";
+        //   trade.tradeType = TradingMode.sell;
+        //   return trade
+        // }
+
         case "paused":
           if ( isBearishCrossover &&
             percentageChange >= -priceDropThreshold ) {
