@@ -629,11 +629,11 @@ export class TradingIndicators {
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${fiveMinuteDirection}`); 
         console.log(detectTop, detectRsiTop);
-        if(percentDifference > 1) {
-          trade.tradeSignal = "Sell: Price is greater than the last BTC price on CG";
-          trade.tradeType = TradingMode.sell;
-          return trade
-        }
+        // if(percentDifference > 2) {
+        //   trade.tradeSignal = "Sell: Price is greater than the last BTC price on CG";
+        //   trade.tradeType = TradingMode.sell;
+        //   return trade
+        // }
         if (isFlashSellSignal) {
           trade.tradeSignal = "Sell: Flash sell signal";
           trade.tradeType = TradingMode.sell;
