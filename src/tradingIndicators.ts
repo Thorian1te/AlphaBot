@@ -594,6 +594,11 @@ export class TradingIndicators {
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${fiveMinuteDirection}`);
         console.log(detectBottom, detectRsiBottom);
+        if(percentDifference < 0.1) {
+          trade.tradeSignal = "Buy: Price is less than the last BTC price on CG";
+          trade.tradeType = TradingMode.buy;
+          return trade
+        }
         if (isFlashBuySignal) {
           trade.tradeSignal = "Buy: Flash buy signal";
           trade.tradeType = TradingMode.buy;
@@ -624,6 +629,11 @@ export class TradingIndicators {
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${fiveMinuteDirection}`); 
         console.log(detectTop, detectRsiTop);
+        if(percentDifference > 1) {
+          trade.tradeSignal = "Sell: Price is greater than the last BTC price on CG";
+          trade.tradeType = TradingMode.sell;
+          return trade
+        }
         if (isFlashSellSignal) {
           trade.tradeSignal = "Sell: Flash sell signal";
           trade.tradeType = TradingMode.sell;
@@ -641,7 +651,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if(fiveMinuteDirection === "Downward" && fifteenminuteDirection === "Stable" && halfHourDirection === "Stable" && oneHourDirection !== "Downward" && lastRsi >= 60 && lastPrice > lastTradePrice ) {
+        if(fiveMinuteDirection === "Downward" && fifteenminuteDirection === "Upward" && halfHourDirection === "Stable" && oneHourDirection !== "Downward" && lastRsi >= 60 && lastPrice > lastTradePrice ) {
           trade.tradeSignal = `sell: Directions says so`;
           trade.tradeType = TradingMode.sell;
           return trade
