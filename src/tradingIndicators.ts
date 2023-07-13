@@ -151,14 +151,14 @@ export class TradingIndicators {
     }
   }
 
-  public determineDirection(currentPrice: number, previousPrice: number,  prices: number[], lastPrice: number): string {
+  public determineDirection(currentPrice: number, previousPrice: number,  prices: number[], lastPrice: number, chart: string): string {
     const priceChanges: number[] = [];
     for (let i = 0; i < prices.length - 1; i++) {
       priceChanges.push(prices[i + 1] - prices[i]);
     }
   
     const overallPriceDirection = priceChanges.every(change => change >= 0) ? "Upward" : "Downward";
-    console.log(currentPrice, previousPrice, overallPriceDirection)
+    console.log(chart, currentPrice, previousPrice, overallPriceDirection)
     if (overallPriceDirection === "Upward") {
       return "Upward";
     } else if (overallPriceDirection === "Downward") {
@@ -543,10 +543,10 @@ export class TradingIndicators {
 
     const fiveMinuteSma = this.getSma(fiveMinuteChart.slice(-200), 1)
     // console.log(fiveMinuteChartLastThirty[fiveMinuteChartLastThirty.length -1])
-    const fiveMinuteDirection = this.determineDirection(fiveMinuteChart[fiveMinuteChart.length -1], fiveMinuteChart[fiveMinuteChart.length -2], oneMinuteChart.slice(-5), lastPrice)
-    const fifteenminuteDirection = this.determineDirection(fifteenMinuteChart[fifteenMinuteChart.length -1 ], fifteenMinuteChart[fifteenMinuteChart.length -2], fiveMinuteChart.slice(-3), lastPrice)
-    const halfHourDirection = this.determineDirection(halfHourChart[halfHourChart.length -1 ], halfHourChart[halfHourChart.length -2], fifteenMinuteChart.slice(-2), lastPrice)
-    const oneHourDirection = this.determineDirection(oneHourChart[oneHourChart.length -1 ], oneHourChart[oneHourChart.length -2], halfHourChart.slice(-2), lastPrice)
+    const fiveMinuteDirection = this.determineDirection(fiveMinuteChart[fiveMinuteChart.length -1], fiveMinuteChart[fiveMinuteChart.length -2], oneMinuteChart.slice(-5), lastPrice, 'Five minute')
+    const fifteenminuteDirection = this.determineDirection(fifteenMinuteChart[fifteenMinuteChart.length -1 ], fifteenMinuteChart[fifteenMinuteChart.length -2], fiveMinuteChart.slice(-3), lastPrice, 'Fifteen minute')
+    const halfHourDirection = this.determineDirection(halfHourChart[halfHourChart.length -1 ], halfHourChart[halfHourChart.length -2], fifteenMinuteChart.slice(-2), lastPrice, 'Half hour')
+    const oneHourDirection = this.determineDirection(oneHourChart[oneHourChart.length -1 ], oneHourChart[oneHourChart.length -2], halfHourChart.slice(-2), lastPrice, 'One hour')
     // Confirm trend direction
     const isBullishTrend =
       psar[psar.length - 1] < sma[sma.length - 1] &&
