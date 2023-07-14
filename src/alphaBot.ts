@@ -403,7 +403,7 @@ export class AlphaBot {
         console.log(`Selling: `, bal.sbtc.formatedAssetString());
         const decision = sbusdinBTC.assetAmount.amount().toNumber() > tradingAmount + 2 ? TradingMode.sell : TradingMode.hold
         if(decision == TradingMode.sell) this.signalTracker.push(`Selling btc`)
-        else { console.log(`Trading mode : ${TradingMode}`)}
+        else { console.log(`Trading mode : ${decision}`)}
         return decision;
       } else {
         if (hasTxRecords) {
@@ -586,6 +586,7 @@ export class AlphaBot {
    * @param tradingWallet
    */
   private async sell(tradingWallet: TradingWallet) {
+    console.log(`Selling btc with amount in trading wallet`)
     const pools = await this.thorchainCache.thornode.getPools()
     const busdSynthPaused = pools.find((pool) => pool.asset === `${assetsBUSD.chain}.${assetsBUSD.symbol}`)
     const bal = await this.getSynthBalance(); 
@@ -595,6 +596,7 @@ export class AlphaBot {
     const busdMinusOne = new CryptoAmount(assetToBase(assetAmount(sellAmount)), assetsBUSD)
     const sythBTC = await this.thorchainQuery.convert(busdMinusOne, bal.sbtc.asset) // leave a dollar in here so bal is not null 
     const decision = sellAmount > tradingAmount + 1 ? true : false
+    console.log(`Decision: ${decision}`)
     // is busd mint available
     if(!busdSynthPaused.synth_mint_paused && decision) {
       const fromAsset = bal.sbtc.asset
