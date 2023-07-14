@@ -124,8 +124,9 @@ export class AlphaBot {
 
     process.stdin.on('keypress', async (str: any, key: any) => {
       if (key.name === 'q') {
-        rl.close();
+        
         this.botConfig.botMode = BotMode.stop;
+        rl.close();
       }
       // force sell
       if (key.name === 's') {
@@ -149,7 +150,7 @@ export class AlphaBot {
 
     this.readLastBuyTrade()
     this.readLastSellTrade()
-
+    
     while (this.botConfig.botMode !== BotMode.stop ) {
       let action: TradingMode;
       const tradingHalted = await this.isTradingHalted();
@@ -159,7 +160,7 @@ export class AlphaBot {
         await this.injestTradingData(interval);
       }
     }
-    rl.close();
+
     if (this.oneMinuteChart.length > 1080) {
       await this.readFromFile(ChartInterval.OneMinute);
     }
