@@ -26,6 +26,7 @@ import {
   BotInfo,
   BotMode,
   ChartInterval,
+  Order,
   Signal,
   SwapDetail,
   SynthBalance,
@@ -67,6 +68,8 @@ export class AlphaBot {
   public OneHourChart: number[] = [];
   public rsi: number[] = [];
   private signalTracker: string[] = [];
+  private userBuyOrder: Order
+  private userSellOrder: Order
 
   private thorchainAmm: ThorchainAMM;
   private keystore1FilePath: string;
@@ -146,6 +149,65 @@ export class AlphaBot {
         }
         await this.checkWalletBal(signal)
       } 
+
+      if (key.name === 'p') {
+        if (!this.userBuyOrder) {
+          // Prompt the user for initial buy order details
+          rl.question('Enter the desired buy price: ', (price: string) => {
+            rl.question('Enter the desired buy quantity: ', (quantity: string) => {
+              const buyOrder: Order = {
+                price: parseFloat(price),
+                quantity: parseFloat(quantity),
+                // Add any other relevant properties to the buy order
+              };
+              this.userBuyOrder = buyOrder
+              console.log('Buy order has been set:', buyOrder);
+            });
+          });
+        } else {
+          // Prompt the user to update buy order details
+          rl.question('Enter the new buy price: ', (price: string) => {
+            rl.question('Enter the new buy quantity: ', (quantity: string) => {
+              const buyOrder: Order = {
+                price: parseFloat(price),
+                quantity: parseFloat(quantity),
+                // Add any other relevant properties to the buy order
+              };
+              this.userBuyOrder = buyOrder
+              console.log('Buy order has been updated:', buyOrder);
+            });
+          });
+        }
+      }
+      if (key.name === 'l') {
+        if (!this.userSellOrder) {
+          // Prompt the user for initial sell order details
+          rl.question('Enter the desired sell price: ', (price: string) => {
+            rl.question('Enter the desired sell quantity: ', (quantity: string) => {
+              let sellOrder: Order = {
+                price: parseFloat(price),
+                quantity: parseFloat(quantity),
+                // Add any other relevant properties to the sell order
+              };
+              this.userSellOrder = sellOrder
+              console.log('Sell order has been set:', sellOrder);
+            });
+          });
+        } else {
+          // Prompt the user to update sell order details
+          rl.question('Enter the new sell price: ', (price: string) => {
+            rl.question('Enter the new sell quantity: ', (quantity: string) => {
+              let sellOrder: Order = {
+                price: parseFloat(price),
+                quantity: parseFloat(quantity),
+                // Add any other relevant properties to the sell order
+              };
+              this.userSellOrder = sellOrder
+              console.log('Sell order has been updated:', sellOrder);
+            });
+          });
+        }
+      }
     });
     this.botConfig.botMode = start ? BotMode.runLiveTrading : BotMode.stop
     console.log(`Start time: ${this.botConfig.startTime}`);
@@ -251,7 +313,9 @@ export class AlphaBot {
       market = await this.checkWalletBal(signal);
       // Execute action based on other conditions
       await this.executeAction(market);
-      
+      if(this.userBuyOrder || this.userSellOrder) {
+        console.log(this.userBuyOrder)
+      }
     } 
   }
 
@@ -393,7 +457,8 @@ export class AlphaBot {
     const tradeTimeDifference = this.getTimeDifference(lastTradeTime) // add wait of 5 minutes before the next trade. 
     const bal = await this.getSynthBalance(); 
     const hasTxRecords = this.txRecords.length > 0;
-    try { const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+    try { 
+      const sbusdinBTC = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
       const lastAction = this.txRecords[this.txRecords.length -1].action
       console.log(`Last action: ${this.txRecords[this.txRecords.length -1].action}`)
       console.log(`last trade was: ${tradeTimeDifference.timeInMinutes} ago at price ${this.txRecords[this.txRecords.length - 1].assetPrice}`)
@@ -405,14 +470,15 @@ export class AlphaBot {
         return decision;
       } else if (signal.type === TradingMode.sell && +tradeTimeDifference.timeInMinutes >= 5) {
         console.log(`Selling: `, bal.sbtc.formatedAssetString());
-        const decision = sbusd.assetAmount.amount().toNumber() > tradingAmount + 2 ? TradingMode.sell : TradingMode.hold
+        const decision = sbusdinBTC.assetAmount.amount().toNumber() > tradingAmount + 2 ? TradingMode.sell : TradingMode.hold
         if(decision == TradingMode.sell) this.signalTracker.push(`Selling btc`)
+        else { console.log(`Trading mode : ${TradingMode}`)}
         return decision;
       } else {
         if (hasTxRecords) {
         console.log('Last tx record:', this.txRecords[this.txRecords.length - 1]);
         }
-        console.log(`BTC balance in Busd:`, sbusd.assetAmount.amount().toNumber()) 
+        console.log(`BTC balance in Busd:`, sbusdinBTC.assetAmount.amount().toNumber()) 
         return TradingMode.hold;
       } 
     } catch (error) { 

@@ -116,3 +116,8 @@ export type TradeAnalysis = {
     tradeSignal: string
     tradeType: TradingMode
 }
+
+export type Order = {
+    price: number
+    quantity: number
+}
