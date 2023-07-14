@@ -129,85 +129,71 @@ export class AlphaBot {
       }
       // force sell
       if (key.name === 's') {
-        let signal: Signal = {
-          type: TradingMode.sell,
-          macd: false,
-          rsi: false,
-          histogram: false,
-          decision: 'User Forced a sell',
-        }
-        await this.checkWalletBal(signal)
+        this.executeAction(TradingMode.sell)
       }
       // force buy
       if (key.name === 'b') {
-        let signal: Signal = {
-          type: TradingMode.buy,
-          macd: false,
-          rsi: false,
-          histogram: false,
-          decision: 'User Forced a buy',
-        }
-        await this.checkWalletBal(signal)
+        this.executeAction(TradingMode.buy)
       } 
 
-      if (key.name === 'p') {
-        if (!this.userBuyOrder) {
-          // Prompt the user for initial buy order details
-          rl.question('Enter the desired buy price: ', (price: string) => {
-            rl.question('Enter the desired buy quantity: ', (quantity: string) => {
-              const buyOrder: Order = {
-                price: parseFloat(price),
-                quantity: parseFloat(quantity),
-                // Add any other relevant properties to the buy order
-              };
-              this.userBuyOrder = buyOrder
-              console.log('Buy order has been set:', buyOrder);
-            });
-          });
-        } else {
-          // Prompt the user to update buy order details
-          rl.question('Enter the new buy price: ', (price: string) => {
-            rl.question('Enter the new buy quantity: ', (quantity: string) => {
-              const buyOrder: Order = {
-                price: parseFloat(price),
-                quantity: parseFloat(quantity),
-                // Add any other relevant properties to the buy order
-              };
-              this.userBuyOrder = buyOrder
-              console.log('Buy order has been updated:', buyOrder);
-            });
-          });
-        }
-      }
-      if (key.name === 'l') {
-        if (!this.userSellOrder) {
-          // Prompt the user for initial sell order details
-          rl.question('Enter the desired sell price: ', (price: string) => {
-            rl.question('Enter the desired sell quantity: ', (quantity: string) => {
-              let sellOrder: Order = {
-                price: parseFloat(price),
-                quantity: parseFloat(quantity),
-                // Add any other relevant properties to the sell order
-              };
-              this.userSellOrder = sellOrder
-              console.log('Sell order has been set:', sellOrder);
-            });
-          });
-        } else {
-          // Prompt the user to update sell order details
-          rl.question('Enter the new sell price: ', (price: string) => {
-            rl.question('Enter the new sell quantity: ', (quantity: string) => {
-              let sellOrder: Order = {
-                price: parseFloat(price),
-                quantity: parseFloat(quantity),
-                // Add any other relevant properties to the sell order
-              };
-              this.userSellOrder = sellOrder
-              console.log('Sell order has been updated:', sellOrder);
-            });
-          });
-        }
-      }
+      // if (key.name === 'p') {
+      //   if (!this.userBuyOrder) {
+      //     // Prompt the user for initial buy order details
+      //     rl.question('Enter the desired buy price: ', (price: string) => {
+      //       rl.question('Enter the desired buy quantity: ', (quantity: string) => {
+      //         const buyOrder: Order = {
+      //           price: parseFloat(price),
+      //           quantity: parseFloat(quantity),
+      //           // Add any other relevant properties to the buy order
+      //         };
+      //         this.userBuyOrder = buyOrder
+      //         console.log('Buy order has been set:', buyOrder);
+      //       });
+      //     });
+      //   } else {
+      //     // Prompt the user to update buy order details
+      //     rl.question('Enter the new buy price: ', (price: string) => {
+      //       rl.question('Enter the new buy quantity: ', (quantity: string) => {
+      //         const buyOrder: Order = {
+      //           price: parseFloat(price),
+      //           quantity: parseFloat(quantity),
+      //           // Add any other relevant properties to the buy order
+      //         };
+      //         this.userBuyOrder = buyOrder
+      //         console.log('Buy order has been updated:', buyOrder);
+      //       });
+      //     });
+      //   }
+      // }
+      // if (key.name === 'l') {
+      //   if (!this.userSellOrder) {
+      //     // Prompt the user for initial sell order details
+      //     rl.question('Enter the desired sell price: ', (price: string) => {
+      //       rl.question('Enter the desired sell quantity: ', (quantity: string) => {
+      //         let sellOrder: Order = {
+      //           price: parseFloat(price),
+      //           quantity: parseFloat(quantity),
+      //           // Add any other relevant properties to the sell order
+      //         };
+      //         this.userSellOrder = sellOrder
+      //         console.log('Sell order has been set:', sellOrder);
+      //       });
+      //     });
+      //   } else {
+      //     // Prompt the user to update sell order details
+      //     rl.question('Enter the new sell price: ', (price: string) => {
+      //       rl.question('Enter the new sell quantity: ', (quantity: string) => {
+      //         let sellOrder: Order = {
+      //           price: parseFloat(price),
+      //           quantity: parseFloat(quantity),
+      //           // Add any other relevant properties to the sell order
+      //         };
+      //         this.userSellOrder = sellOrder
+      //         console.log('Sell order has been updated:', sellOrder);
+      //       });
+      //     });
+      //   }
+      // }
     });
     this.botConfig.botMode = start ? BotMode.runLiveTrading : BotMode.stop
     console.log(`Start time: ${this.botConfig.startTime}`);
