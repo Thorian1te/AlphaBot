@@ -590,7 +590,7 @@ export class TradingIndicators {
     
     switch (lastAction) {
       case "sell":
-        const detectBottom = this.detectBottom(fiveMinuteChart, 0.0001, 30);
+        const detectBottom = this.detectBottom(fifteenMinuteChart, 0.0001, 30);
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${fiveMinuteDirection}`);
         console.log(detectBottom, detectRsiBottom);
@@ -609,6 +609,11 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fifteenminuteDirection === "Upward" && lastFiveMinuteRsi <= 30 && percentDifference <= 0.5 ) {
+          trade.tradeSignal = "buy: Price approaching support level and bottom detected";
+          trade.tradeType = TradingMode.buy;
+          return trade
+        }
         if(fiveMinuteDirection === "UpWard" && fifteenminuteDirection === "Stable" && halfHourDirection === "Stable" && oneHourDirection !== "Upward" && lastFiveMinuteRsi <= 50 && percentDifference <= 0.5) {
           trade.tradeSignal = `buy: Directions says so`;
           trade.tradeType = TradingMode.sell;
@@ -619,11 +624,6 @@ export class TradingIndicators {
           return trade
         }
 
-        // if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fifteenminuteDirection === "Upward" && lastFiveMinuteRsi <= 50 && percentDifference <= 0.5 ) {
-        //   trade.tradeSignal = "buy: Price approaching support level and bottom detected";
-        //   trade.tradeType = TradingMode.buy;
-        //   return trade
-        // }
       case "buy": // last trade was a buy so look for a sell
         const detectTop = this.detectTop(fifteenMinuteChart, 0.0001, 30);
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
