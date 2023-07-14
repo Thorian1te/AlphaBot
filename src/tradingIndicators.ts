@@ -594,8 +594,8 @@ export class TradingIndicators {
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${fiveMinuteDirection}`);
         console.log(detectBottom, detectRsiBottom);
-        if(percentDifference < 0.1) {
-          trade.tradeSignal = "Buy: Price is less than the last BTC price on CG";
+        if(percentDifference < 0.05) {
+          trade.tradeSignal = `Buy: Price is within ${percentDifference}% of the last BTC price on CG`;
           trade.tradeType = TradingMode.buy;
           return trade
         }
