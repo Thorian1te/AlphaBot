@@ -129,71 +129,16 @@ export class AlphaBot {
       }
       // force sell
       if (key.name === 's') {
+        console.log('User forced a sell')
+        this.signalTracker.push(`User forced sell`)
         this.executeAction(TradingMode.sell)
       }
       // force buy
       if (key.name === 'b') {
+        console.log('User forced a buy')
+        this.signalTracker.push(`User forced buy`)
         this.executeAction(TradingMode.buy)
-      } 
-
-      // if (key.name === 'p') {
-      //   if (!this.userBuyOrder) {
-      //     // Prompt the user for initial buy order details
-      //     rl.question('Enter the desired buy price: ', (price: string) => {
-      //       rl.question('Enter the desired buy quantity: ', (quantity: string) => {
-      //         const buyOrder: Order = {
-      //           price: parseFloat(price),
-      //           quantity: parseFloat(quantity),
-      //           // Add any other relevant properties to the buy order
-      //         };
-      //         this.userBuyOrder = buyOrder
-      //         console.log('Buy order has been set:', buyOrder);
-      //       });
-      //     });
-      //   } else {
-      //     // Prompt the user to update buy order details
-      //     rl.question('Enter the new buy price: ', (price: string) => {
-      //       rl.question('Enter the new buy quantity: ', (quantity: string) => {
-      //         const buyOrder: Order = {
-      //           price: parseFloat(price),
-      //           quantity: parseFloat(quantity),
-      //           // Add any other relevant properties to the buy order
-      //         };
-      //         this.userBuyOrder = buyOrder
-      //         console.log('Buy order has been updated:', buyOrder);
-      //       });
-      //     });
-      //   }
-      // }
-      // if (key.name === 'l') {
-      //   if (!this.userSellOrder) {
-      //     // Prompt the user for initial sell order details
-      //     rl.question('Enter the desired sell price: ', (price: string) => {
-      //       rl.question('Enter the desired sell quantity: ', (quantity: string) => {
-      //         let sellOrder: Order = {
-      //           price: parseFloat(price),
-      //           quantity: parseFloat(quantity),
-      //           // Add any other relevant properties to the sell order
-      //         };
-      //         this.userSellOrder = sellOrder
-      //         console.log('Sell order has been set:', sellOrder);
-      //       });
-      //     });
-      //   } else {
-      //     // Prompt the user to update sell order details
-      //     rl.question('Enter the new sell price: ', (price: string) => {
-      //       rl.question('Enter the new sell quantity: ', (quantity: string) => {
-      //         let sellOrder: Order = {
-      //           price: parseFloat(price),
-      //           quantity: parseFloat(quantity),
-      //           // Add any other relevant properties to the sell order
-      //         };
-      //         this.userSellOrder = sellOrder
-      //         console.log('Sell order has been updated:', sellOrder);
-      //       });
-      //     });
-      //   }
-      // }
+      }
     });
     this.botConfig.botMode = start ? BotMode.runLiveTrading : BotMode.stop
     console.log(`Start time: ${this.botConfig.startTime}`);
@@ -645,12 +590,13 @@ export class AlphaBot {
     const busdSynthPaused = pools.find((pool) => pool.asset === `${assetsBUSD.chain}.${assetsBUSD.symbol}`)
     const bal = await this.getSynthBalance(); 
 
-    const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
-    const sellAmount = sbusd.assetAmount.amount().toNumber() - 1
+    const sbusdinBTC = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+    const sellAmount = sbusdinBTC.assetAmount.amount().toNumber() - 1
     const busdMinusOne = new CryptoAmount(assetToBase(assetAmount(sellAmount)), assetsBUSD)
     const sythBTC = await this.thorchainQuery.convert(busdMinusOne, bal.sbtc.asset) // leave a dollar in here so bal is not null 
+    const decision = sellAmount > tradingAmount + 1 ? true : false
     // is busd mint available
-    if(!busdSynthPaused.synth_mint_paused) {
+    if(!busdSynthPaused.synth_mint_paused && decision) {
       const fromAsset = bal.sbtc.asset
       // sell the balance
       const destinationAsset = assetsBUSD;
