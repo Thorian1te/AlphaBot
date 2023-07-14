@@ -609,12 +609,12 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fifteenminuteDirection === "Upward" && lastFiveMinuteRsi <= 30 && percentDifference <= 0.5 ) {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fifteenminuteDirection === "Upward" && lastFiveMinuteRsi <= 30 && percentDifference <= 0.1 ) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if(fiveMinuteDirection === "UpWard" && fifteenminuteDirection === "Stable" && halfHourDirection === "Stable" && oneHourDirection !== "Upward" && lastFiveMinuteRsi <= 50 && percentDifference <= 0.5) {
+        if(fiveMinuteDirection === "UpWard" && fifteenminuteDirection === "Stable" && halfHourDirection === "Stable" && oneHourDirection !== "Upward" && lastFiveMinuteRsi <= 40 && percentDifference <= 0.1) {
           trade.tradeSignal = `buy: Directions says so`;
           trade.tradeType = TradingMode.sell;
           return trade
