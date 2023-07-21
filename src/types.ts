@@ -34,6 +34,7 @@ export enum TradingMode {
     sell = 'sell',
     hold = 'hold',
     paused = 'paused',
+    trade = 'trade'
 }
 
 
@@ -121,3 +122,11 @@ export type Order = {
     price: number
     quantity: number
 }
+
+export enum Direction {
+    Upward = "Upward",
+    Downward = "Downward",
+    Stable = "Stable",
+  }
+  
+  

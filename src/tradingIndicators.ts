@@ -7,8 +7,11 @@ import {
   TradeAnalysis,
   TradingMode,
   TxDetail,
+  Direction
 } from "./types";
 import axios from "axios";
+
+
 
 export class TradingIndicators {
   public rsi: number[] = [];
@@ -99,6 +102,22 @@ export class TradingIndicators {
     }
     return macdHistogram;
   };
+    // This is a utility function to get the last element in an array
+  private getLast<T>(array: T[]): T {
+    return array[array.length - 1];
+  }
+
+  // This function calculates the percentage change
+  private calculatePercentageChange(previousPrice: number, lastPrice: number): number {
+    return ((lastPrice - previousPrice) / previousPrice) * 100;
+  }
+
+  // This function generates a trading decision based on the analysis
+  private generateTradingDecision(trade: TradeAnalysis, direction: Direction, lastRsi: number, smaSignal: string): TradeAnalysis {
+    trade.tradeSignal = `No clear trading signal, ${direction}, Sma Signal: ${smaSignal}`;
+    console.log(trade.tradeSignal, lastRsi);
+    return trade;
+  }
 
   /**
    *
@@ -151,17 +170,17 @@ export class TradingIndicators {
     }
   }
 
-  public determineDirection(chart: number[]): string {
+  public determineDirection(chart: number[]): Direction {
     const currentPrice = chart[chart.length - 1];
     const previousPrice = chart[chart.length - 2];
     const prePreviousPrice = chart[chart.length - 3];
   
     if (currentPrice < previousPrice && previousPrice < prePreviousPrice) {
-      return "Downward";
+      return Direction.Downward;
     } else if (currentPrice > previousPrice && previousPrice > prePreviousPrice) {
-      return "Upward";
+      return Direction.Upward;
     } else {
-      return "Stable";
+      return Direction.Stable;
     }
   }
 
@@ -485,14 +504,15 @@ export class TradingIndicators {
   public determineSignal(analysisResult: string): string {
     if (analysisResult.includes("The price is increasing quickly.") &&
         analysisResult.includes("Bullish signal: Short-term SMA is crossing above the long-term SMA.")) {
-      return "hold";
+      return TradingMode.hold;
     } else if (analysisResult.includes("The price is decreasing quickly.") &&
                analysisResult.includes("Bearish signal: Short-term SMA is crossing below the long-term SMA.")) {
-      return "hold";
+      return TradingMode.hold;
     } else {
-      return "trade";
+      return TradingMode.trade;
     }
   }
+
 
   public analyzeTradingSignals(
     psar: number[],
@@ -522,8 +542,9 @@ export class TradingIndicators {
     const stopLossThreshold = 1;
     const previousPrice = fifteenMinuteChart[fifteenMinuteChart.length - 1];
     const lastPrice = oneMinuteChart[oneMinuteChart.length - 1];
-    const percentageChange =
-      ((lastPrice - previousPrice) / previousPrice) * 100;
+    // Calculate the percentage change
+    const percentageChange = this.calculatePercentageChange(previousPrice, lastPrice);
+
     const FiveMinuteRsi = rsi(fiveMinuteChart)
     const lastFiveMinuteRsi = FiveMinuteRsi[FiveMinuteRsi.length -1]
     console.log(`Last five minute rsi: ${lastFiveMinuteRsi}`)
@@ -548,17 +569,15 @@ export class TradingIndicators {
       psar[psar.length - 1] > sma[sma.length - 1] &&
       psar[psar.length - 1] > ema[ema.length - 1];
 
+
+
     // Check for MACD crossover signals
-    const isBullishCrossover =
-      macdLine[macdLine.length - 1] > signalLine[signalLine.length - 1] &&
-      macdLine[macdLine.length - 2] < signalLine[signalLine.length - 2];
-    const isBearishCrossover =
-      macdLine[macdLine.length - 1] < signalLine[signalLine.length - 1] &&
-      macdLine[macdLine.length - 2] > signalLine[signalLine.length - 2];
+    const isBullishCrossover = this.getLast(macdLine) > this.getLast(signalLine) && macdLine[macdLine.length - 2] < signalLine[signalLine.length - 2];
+    const isBearishCrossover = this.getLast(macdLine) < this.getLast(signalLine) && macdLine[macdLine.length - 2] > signalLine[signalLine.length - 2];
 
     // Identify support and resistance levels
-    const supportLevel = Math.min(sma[sma.length - 1], ema[ema.length - 1]);
-    const resistanceLevel = Math.max(sma[sma.length - 1], ema[ema.length - 1]);
+    const supportLevel = Math.min(this.getLast(sma), this.getLast(ema));
+    const resistanceLevel = Math.max(this.getLast(sma), this.getLast(ema));
 
     // trade on the psar
     const isFlashSellSignal = psar.every(
@@ -594,6 +613,11 @@ export class TradingIndicators {
         const detectRsiBottom = this.detectBottom(FiveMinuteRsi, 0.01, 6);
         console.log(`Looking for a buy, Support level ${supportLevel}, direction: ${fiveMinuteDirection}`);
         console.log(detectBottom, detectRsiBottom);
+        if(isBullishCrossover) {
+          trade.tradeSignal = `Buy: Price is bullish`;
+          trade.tradeType = TradingMode.buy;
+          return trade
+        }
         if(percentDifference < 0.02 && lastFiveMinuteRsi <= 50) {
           trade.tradeSignal = `Buy: Price is within ${percentDifference}% of the last BTC price on CG`;
           trade.tradeType = TradingMode.buy;
@@ -614,21 +638,23 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if(fiveMinuteDirection === "UpWard" && fifteenminuteDirection === "Stable" && halfHourDirection === "Stable" && oneHourDirection !== "Upward" && lastFiveMinuteRsi <= 40 && percentDifference <= 0.1) {
+        if(fiveMinuteDirection === Direction.Stable && fifteenminuteDirection === Direction.Stable && halfHourDirection === Direction.Stable && oneHourDirection !== Direction.Upward && lastFiveMinuteRsi <= 40 && percentDifference <= 0.1) {
           trade.tradeSignal = `buy: Directions says so`;
           trade.tradeType = TradingMode.sell;
           return trade
-        } else {
-          trade.tradeSignal = `No clear trading signal, ${fiveMinuteDirection}`;
-          console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
-          return trade
-        }
+        } 
+        return this.generateTradingDecision(trade, fiveMinuteDirection, lastRsi, smaSignal );
 
       case "buy": // last trade was a buy so look for a sell
         const detectTop = this.detectTop(fifteenMinuteChart, 0.0001, 30);
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${fiveMinuteDirection}`); 
         console.log(detectTop, detectRsiTop);
+        if(isBearishCrossover) {
+          trade.tradeSignal = `Buy: Price is bearish`;
+          trade.tradeType = TradingMode.sell;
+          return trade
+        }
         if(percentDifference > 2) {
           trade.tradeSignal = "Sell: Price is greater than the last BTC price on CG";
           trade.tradeType = TradingMode.sell;
@@ -660,11 +686,8 @@ export class TradingIndicators {
           trade.tradeSignal = `sell: Directions says so`;
           trade.tradeType = TradingMode.sell;
           return trade
-        } else {
-          trade.tradeSignal = `No clear trading signal, ${fiveMinuteDirection}`;
-          console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
-          return trade
-        }
+        } 
+        return this.generateTradingDecision(trade, fiveMinuteDirection, lastRsi, smaSignal );
 
         case "paused":
           if ( isBearishCrossover &&
@@ -676,11 +699,8 @@ export class TradingIndicators {
             trade.tradeSignal = "Buy: PSAR crossed above EMA";
             trade.tradeType = TradingMode.buy;
             return trade
-          } else {
-            trade.tradeSignal = `No clear trading signal, ${fiveMinuteDirection}`;
-            console.log(trade.tradeSignal, this.rsi[this.rsi.length - 1]);
-            return trade
           }
+          return this.generateTradingDecision(trade, fiveMinuteDirection, lastRsi, smaSignal );
     }
   }
 }
