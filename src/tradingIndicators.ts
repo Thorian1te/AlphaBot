@@ -633,14 +633,14 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && fifteenminuteDirection === "Upward" && lastFiveMinuteRsi <= 30 && percentDifference <= 0.1 ) {
+        if (detectBottom.isTrendReversal && detectRsiBottom.isTrendReversal && lastFiveMinuteRsi <= 30 && percentDifference <= 0.1 ) {
           trade.tradeSignal = "buy: Price approaching support level and bottom detected";
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if(fiveMinuteDirection === Direction.Stable && fifteenminuteDirection === Direction.Stable && halfHourDirection === Direction.Stable && oneHourDirection !== Direction.Upward && lastFiveMinuteRsi <= 40 && percentDifference <= 0.1) {
+        if(fiveMinuteDirection === Direction.Upward && fifteenminuteDirection === Direction.Upward && halfHourDirection === Direction.Upward && oneHourDirection === Direction.Upward && lastFiveMinuteRsi <= 40 && percentDifference <= 0.1) {
           trade.tradeSignal = `buy: Directions says so`;
-          trade.tradeType = TradingMode.sell;
+          trade.tradeType = TradingMode.buy;
           return trade
         } 
         return this.generateTradingDecision(trade, fiveMinuteDirection, lastRsi, smaSignal );
@@ -682,8 +682,8 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.sell;
           return trade
         }
-        if(fiveMinuteDirection === "Downward" && fifteenminuteDirection === "Stable" && halfHourDirection === "Stable" && oneHourDirection !== "Downward" && lastRsi >= 60 && lastPrice > lastTradePrice ) {
-          trade.tradeSignal = `sell: Directions says so`;
+        if(fiveMinuteDirection === Direction.Downward && fifteenminuteDirection === Direction.Downward && halfHourDirection === Direction.Downward && oneHourDirection === Direction.Downward && lastRsi >= 60 ) {
+          trade.tradeSignal = `sell: Directions says so, overall direction downward`;
           trade.tradeType = TradingMode.sell;
           return trade
         } 
