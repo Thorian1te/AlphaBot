@@ -618,7 +618,7 @@ export class TradingIndicators {
           trade.tradeType = TradingMode.buy;
           return trade
         }
-        if(percentDifference < 0.02 && lastFiveMinuteRsi <= 50) {
+        if(percentDifference < 0.015 && lastFiveMinuteRsi <= 40) {
           trade.tradeSignal = `Buy: Price is within ${percentDifference}% of the last BTC price on CG`;
           trade.tradeType = TradingMode.buy;
           return trade
@@ -650,8 +650,8 @@ export class TradingIndicators {
         const detectRsiTop = this.detectTop(FiveMinuteRsi, 0.01, 6)
         console.log(`Looking for a Sell, resistance level ${resistanceLevel} direction: ${fiveMinuteDirection}`); 
         console.log(detectTop, detectRsiTop);
-        if(isBearishCrossover) {
-          trade.tradeSignal = `Buy: Price is bearish`;
+        if(isBearishCrossover && lastFiveMinuteRsi > 50) {
+          trade.tradeSignal = `Sell: Price is bearish`;
           trade.tradeType = TradingMode.sell;
           return trade
         }
