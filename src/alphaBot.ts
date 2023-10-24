@@ -46,7 +46,7 @@ const assetsBTC = assetFromStringEx(`BTC/BTC`);
 const oneMinuteInMs = 60 * 1000; // 1 minute in milliseconds
 
 // amount to be traded in 
-const tradingAmount = 1500
+const tradingAmount = 1600
 
 const tradePercentage = 0.03 //represented as a number
 
