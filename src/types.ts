@@ -34,6 +34,7 @@ export enum TradingMode {
     sell = 'sell',
     hold = 'hold',
     paused = 'paused',
+    trade = 'trade'
 }
 
 
@@ -94,7 +95,6 @@ export type Signal = {
 export type SynthBalance = {
     sbusd: CryptoAmount,
     sbtc: CryptoAmount,
-    sbtcb: CryptoAmount,
 }
 
 export type ParabolicSar = {
@@ -117,3 +117,16 @@ export type TradeAnalysis = {
     tradeSignal: string
     tradeType: TradingMode
 }
+
+export type Order = {
+    price: number
+    quantity: number
+}
+
+export enum Direction {
+    Upward = "Upward",
+    Downward = "Downward",
+    Stable = "Stable",
+  }
+  
+  
