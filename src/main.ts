@@ -1,18 +1,13 @@
-
-import { Network } from "@xchainjs/xchain-client"
-import { AlphaBot } from "./alphaBot"
-import { ChartInterval } from "./types"
-require("dotenv").config();
-
+import { Network } from '@xchainjs/xchain-client'
+import { AlphaBot } from './alphaBot'
+import { ChartInterval } from './types'
+require('dotenv').config()
 
 const keystore1FilePath = './alphaBot.txt'
 const password = process.env.ALPHABOT ?? ''
 const pauseTimeSeconds = 10
 
- 
-const alphaBot = new AlphaBot(
-  Network.Mainnet, keystore1FilePath, password, pauseTimeSeconds 
-)
+const alphaBot = new AlphaBot(Network.Mainnet, keystore1FilePath, password, pauseTimeSeconds)
 
 async function main() {
   let start = true
@@ -21,10 +16,9 @@ async function main() {
   alphaBot.dataCollectionFifteenMinutes(start, ChartInterval.FifteenMinute)
   alphaBot.dataCollectionHalfHour(start, ChartInterval.HalfHour)
   alphaBot.dataCollectionOneHour(start, ChartInterval.OneHour)
-  await alphaBot.start(ChartInterval.FifteenMinute) 
+  await alphaBot.start(ChartInterval.FifteenMinute)
 }
 
-
 main()
-.then(() => process.exit(0))
-.catch((err) => console.error(err))
+  .then(() => process.exit(0))
+  .catch((err) => console.error(err))
