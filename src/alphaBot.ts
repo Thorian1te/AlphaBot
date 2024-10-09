@@ -12,8 +12,8 @@ import { Client as ThorClient, defaultClientConfig as defaultThorParams } from '
 
 import { ThorchainAMM } from '@xchainjs/xchain-thorchain-amm'
 import { Wallet } from '@xchainjs/xchain-wallet'
-import { Midgard, MidgardCache, MidgardQuery } from '@xchainjs/xchain-midgard-query'
-import { ThorchainCache, ThorchainQuery, Thornode } from '@xchainjs/xchain-thorchain-query'
+import { Midgard, MidgardCache } from '@xchainjs/xchain-midgard-query'
+import { ThorchainCache, ThorchainQuery } from '@xchainjs/xchain-thorchain-query'
 import { decryptFromKeystore } from '@xchainjs/xchain-crypto'
 import { Network } from '@xchainjs/xchain-client'
 import { THORChain } from '@xchainjs/xchain-thorchain'
@@ -23,8 +23,10 @@ import {
   assetFromStringEx,
   delay,
   assetToBase,
-  Asset,
   baseAmount,
+  AnyAsset,
+  Asset,
+  TradeAsset,
 } from '@xchainjs/xchain-util'
 import { doSingleSwap } from './doSwap'
 import {
@@ -44,9 +46,9 @@ import { TradingIndicators } from './tradingIndicators'
 
 require('dotenv').config()
 
-const assetsBUSD = assetFromStringEx(`BNB/BUSD-BD1`)
-const assetsBTC = assetFromStringEx(`BTC/BTC`)
-const assetsBTCB = assetFromStringEx(`BNB/BTCB-1DE`)
+const assetsBTC = assetFromStringEx(`BTC~BTC`)
+const assetsBTCB = assetFromStringEx(`BNB~BTCB-1DE`)
+const assetsUSDT = assetFromStringEx(`ETH~USDT-0xdAC17F958D2ee523a2206206994597C13D831ec7`) as TradeAsset
 
 const oneMinuteInMs = 60 * 1000 // 1 minute in milliseconds
 
@@ -90,7 +92,7 @@ export class AlphaBot {
   private keystore1Password: string
   private wallet: Wallet | undefined
   private pauseTimeSeconds: number
-  private asset: Asset
+  private asset: AnyAsset
   private botConfig: BotInfo = {
     botMode: BotMode.runIdle,
     walletStatus: 'initialized',
@@ -106,7 +108,7 @@ export class AlphaBot {
     this.keystore1Password = keystore1Password
     this.pauseTimeSeconds = pauseTimeSeconds
     this.midgardCache = new MidgardCache(new Midgard(network))
-    this.thorchainCache = new ThorchainCache(new Thornode(network), new MidgardQuery(this.midgardCache))
+    this.thorchainCache = new ThorchainCache()
     this.thorchainQuery = new ThorchainQuery(this.thorchainCache)
     this.thorchainAmm = new ThorchainAMM(this.thorchainQuery)
     this.tradingIndicators = new TradingIndicators()
@@ -203,8 +205,8 @@ export class AlphaBot {
       console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`)
       console.log(bal.sbusd.formatedAssetString())
       try {
-        const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD)
-        const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD)
+        const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsUSDT)
+        const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsUSDT)
         console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
         console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
       } catch (error) {
@@ -310,7 +312,7 @@ export class AlphaBot {
   private async getAssetPrice(chartInterval: string) {
     console.log(`Fecthing data at interval ${chartInterval} for asset ${this.asset.ticker}`)
     try {
-      const assetPool = await this.thorchainCache.getPoolForAsset(this.asset)
+      const assetPool = await this.thorchainCache.getPoolForAsset(this.asset as Asset)
       const assetPrice = Number(assetPool.pool.assetPriceUSD)
       const price = Number(assetPrice.toFixed(2))
       this.oneMinuteChart.push(price)
@@ -336,7 +338,7 @@ export class AlphaBot {
     const bal = await this.getSynthBalance()
     const hasTxRecords = this.txRecords.length > 0
     try {
-      const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD)
+      const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsUSDT)
       const lastAction = this.txRecords[this.txRecords.length - 1].action
       console.log(`Last action: ${this.txRecords[this.txRecords.length - 1].action}`)
       console.log(
@@ -530,18 +532,18 @@ export class AlphaBot {
    */
   private async sell(tradingWallet: TradingWallet) {
     const pools = await this.thorchainCache.thornode.getPools()
-    const busdSynthPaused = pools.find((pool) => pool.asset === `${assetsBUSD.chain}.${assetsBUSD.symbol}`)
+    const busdSynthPaused = pools.find((pool) => pool.asset === `${assetsUSDT.chain}.${assetsUSDT.symbol}`)
     const bal = await this.getSynthBalance()
 
-    const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD)
+    const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsUSDT)
     const sellAmount = sbusd.assetAmount.amount().toNumber() - 1
-    const busdMinusOne = new CryptoAmount(assetToBase(assetAmount(sellAmount)), assetsBUSD)
+    const busdMinusOne = new CryptoAmount(assetToBase(assetAmount(sellAmount)), assetsUSDT)
     const sythBTC = await this.thorchainQuery.convert(busdMinusOne, bal.sbtc.asset) // leave a dollar in here so bal is not null
     // is busd mint available
     if (!busdSynthPaused.synth_mint_paused) {
-      const fromAsset = bal.sbtc.asset
+      const fromAsset = bal.sbtc.asset as TradeAsset
       // sell the balance
-      const destinationAsset = assetsBUSD
+      const destinationAsset = assetsUSDT
       const swapDetail: SwapDetail = {
         amount: sythBTC,
         decimals: 8,
@@ -572,9 +574,9 @@ export class AlphaBot {
     const pools = await this.thorchainCache.thornode.getPools()
     const btcSynthPaused = pools.find((pool) => pool.asset === `${assetsBTC.chain}.${assetsBTC.symbol}`)
 
-    const sbusd = new CryptoAmount(assetToBase(assetAmount(tradingAmount)), assetsBUSD)
-    const fromAsset = assetsBUSD
-    const destinationAsset = assetsBTC
+    const sbusd = new CryptoAmount(assetToBase(assetAmount(tradingAmount)), assetsUSDT)
+    const fromAsset = assetsUSDT
+    const destinationAsset = assetsBTC as TradeAsset
     const swapDetail: SwapDetail = {
       amount: sbusd,
       decimals: 8,
@@ -615,25 +617,25 @@ export class AlphaBot {
    * @returns - Synth balance for the wallet
    */
   private async getSynthBalance(): Promise<SynthBalance> {
-    let synthbtc = assetsBTC
-    let synthBUSD = assetsBUSD
-    let synthBTCB = assetsBTCB
+    let tradeBtc = assetsBTC
+    let tradeUSDT = assetsUSDT
+    let tradeBTCB = assetsBTCB
 
     try {
       const address = this.wallet.getAddress(THORChain)
       const balance = await this.wallet.clients[THORChain].getBalance(address)
-      const bitcoinBal = balance.find((asset) => asset.asset.ticker === synthbtc.ticker)
-        ? balance.find((asset) => asset.asset.ticker === synthbtc.ticker).amount
+      const bitcoinBal = balance.find((asset) => asset.asset.ticker === tradeBtc.ticker)
+        ? balance.find((asset) => asset.asset.ticker === tradeBtc.ticker).amount
         : null
-      const busdBal = balance.find((asset) => asset.asset.ticker === synthBUSD.ticker)
-        ? balance.find((asset) => asset.asset.ticker === synthBUSD.ticker).amount
+      const busdBal = balance.find((asset) => asset.asset.ticker === tradeUSDT.ticker)
+        ? balance.find((asset) => asset.asset.ticker === tradeUSDT.ticker).amount
         : null
-      const btcbBal = balance.find((asset) => asset.asset.ticker === synthBTCB.ticker)
-        ? balance.find((asset) => asset.asset.ticker === synthBTCB.ticker).amount
+      const btcbBal = balance.find((asset) => asset.asset.ticker === tradeBTCB.ticker)
+        ? balance.find((asset) => asset.asset.ticker === tradeBTCB.ticker).amount
         : null
 
       const sbalance: SynthBalance = {
-        sbusd: new CryptoAmount(busdBal, assetsBUSD),
+        sbusd: new CryptoAmount(busdBal, assetsUSDT),
         sbtc: new CryptoAmount(bitcoinBal, assetsBTC),
         sbtcb: btcbBal !== null ? new CryptoAmount(btcbBal, assetsBTCB) : new CryptoAmount(baseAmount(0), assetsBTCB),
       }
@@ -669,8 +671,8 @@ export class AlphaBot {
       const bal = await this.getSynthBalance()
       console.log(bal.sbtc.formatedAssetString())
       console.log(bal.sbusd.formatedAssetString())
-      const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD)
-      const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD)
+      const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsUSDT)
+      const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsUSDT)
       console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
       console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
     } catch (err) {
