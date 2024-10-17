@@ -1,12 +1,12 @@
 import { ThorchainAMM, TxSubmitted } from '@xchainjs/xchain-thorchain-amm'
-import { CryptoAmount, Address, Asset } from '@xchainjs/xchain-util'
+import { CryptoAmount, Address, Asset, TradeAsset, AnyAsset, BaseAmount } from '@xchainjs/xchain-util'
 import { Wallet } from '@xchainjs/xchain-wallet'
 
 export type SwapDetail = {
   amount: CryptoAmount
   decimals: number
-  fromAsset: Asset
-  destinationAsset: Asset
+  fromAsset: TradeAsset
+  destinationAsset: TradeAsset
 }
 
 export type TradingWallet = {
@@ -17,7 +17,7 @@ export type TxDetail = {
   date: Date
   action: string
   assetPrice: number
-  asset: Asset
+  asset: TradeAsset
   amount: string
   result: TxSubmitted | string
   rsi: number
@@ -90,9 +90,9 @@ export type Signal = {
   decision: string
 }
 
-export type SynthBalance = {
-    sbusd: CryptoAmount,
-    sbtc: CryptoAmount,
+export type RuneBalance = {
+  asset: AnyAsset;
+  amount: BaseAmount;
 }
 
 export type ParabolicSar = {

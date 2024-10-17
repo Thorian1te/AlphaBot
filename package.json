@@ -10,8 +10,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@binance-chain/javascript-sdk": "^4.2.0",
-    "@cosmos-client/core": "0.46.1",
     "@psf/bitcoincashjs-lib": "^4.0.3",
     "@types/chart.js": "^2.9.37",
     "@types/jest": "^26.0.15",
