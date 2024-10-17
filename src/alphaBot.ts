@@ -24,14 +24,13 @@ import {
   delay,
   assetToBase,
   Asset,
-  baseAmount,
-} from '@xchainjs/xchain-util'
-import { doSingleSwap } from './doSwap'
+} from "@xchainjs/xchain-util";
+import { doSingleSwap } from "./doSwap";
 import {
   BotInfo,
   BotMode,
   ChartInterval,
-  MacdResult,
+  Order,
   Signal,
   SwapDetail,
   SynthBalance,
@@ -39,33 +38,26 @@ import {
   TradingMode,
   TradingWallet,
   TxDetail,
-} from './types'
-import { TradingIndicators } from './tradingIndicators'
+} from "./types";
+import {TradingIndicators} from './tradingIndicators'
+import readline from 'readline';
 
 require('dotenv').config()
 
-const assetsBUSD = assetFromStringEx(`BNB/BUSD-BD1`)
-const assetsBTC = assetFromStringEx(`BTC/BTC`)
-const assetsBTCB = assetFromStringEx(`BNB/BTCB-1DE`)
+const assetsBUSD = assetFromStringEx(`BNB/BUSD-BD1`);
+const assetsBTC = assetFromStringEx(`BTC/BTC`);
+
 
 const oneMinuteInMs = 60 * 1000 // 1 minute in milliseconds
 
-// amount to be traded in
-const tradingAmount = 1000
+// amount to be traded in 
+const tradingAmount = 1600
 
 const tradePercentage = 0.03 //represented as a number
 
-export const getClients = (seed: string) => ({
-  BTC: new BtcClient({ ...defaultBtcParams, phrase: seed }),
-  BCH: new BchClient({ ...defaultBchParams, phrase: seed }),
-  LTC: new LtcClient({ ...defaultLtcParams, phrase: seed }),
-  DOGE: new DogeClient({ ...defaultDogeParams, phrase: seed }),
-  ETH: new EthClient({ ...defaultEthParams, phrase: seed }),
-  AVAX: new AvaxClient({ ...defaultAvaxParams, phrase: seed }),
-  BSC: new BscClient({ ...defaultBscParams, phrase: seed }),
-  GAIA: new GaiaClient({ phrase: seed }),
-  THOR: new ThorClient({ ...defaultThorParams, phrase: seed }),
-})
+const WAIT_TIME_BEFORE_NEXT_TRADE = 5; // in minutes
+const Fifteen = 15
+
 
 export class AlphaBot {
   private midgardCache: MidgardCache
@@ -77,13 +69,15 @@ export class AlphaBot {
   private sellOrders: TxDetail[] = []
   private buyOrders: TxDetail[] = []
 
-  public oneMinuteChart: number[] = []
-  public fiveMinuteChart: number[] = []
-  public fifteenMinuteChart: number[] = []
-  public halfHourChart: number[] = []
-  public OneHourChart: number[] = []
-  public rsi: number[] = []
-  private signalTracker: string[] = []
+  public oneMinuteChart: number[] = [];
+  public fiveMinuteChart: number[] = [];
+  public fifteenMinuteChart: number[] = [];
+  public halfHourChart: number[] = [];
+  public OneHourChart: number[] = [];
+  public rsi: number[] = [];
+  private signalTracker: string[] = [];
+  private userBuyOrder: Order
+  private userSellOrder: Order
 
   private thorchainAmm: ThorchainAMM
   private keystore1FilePath: string
@@ -121,34 +115,59 @@ export class AlphaBot {
     this.thorchainAmm = new ThorchainAMM(this.thorchainQuery, this.wallet)
   }
 
-  async start(interval: ChartInterval) {
-    console.log(`Start time: ${this.botConfig.startTime}`)
-    console.log('Setting up wallet')
-    await this.walletSetup()
-    console.log('Running AlphaBot....')
-    this.schedule()
-    try {
-      this.readLastBuyTrade()
-      this.readLastSellTrade()
-    } catch (error) {
-      console.log(`Error no previous trades found`)
-    }
-    while (this.botConfig.botMode !== BotMode.stop) {
-      let action: TradingMode
-      const tradingHalted = await this.isTradingHalted()
+  async start(interval: ChartInterval, start: Boolean) {
+
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    process.stdin.on('keypress', async (str: any, key: any) => {
+      if (key.name === 'q') {
+        
+        this.botConfig.botMode = BotMode.stop;
+        rl.close();
+      }
+      // force sell
+      if (key.name === 's') {
+        console.log('User forced a sell')
+        this.signalTracker.push(`User forced sell`)
+        this.executeAction(TradingMode.sell)
+      }
+      // force buy
+      if (key.name === 'b') {
+        console.log('User forced a buy')
+        this.signalTracker.push(`User forced buy`)
+        this.executeAction(TradingMode.buy)
+      }
+    });
+    this.botConfig.botMode = start ? BotMode.runLiveTrading : BotMode.stop
+    console.log(`Start time: ${this.botConfig.startTime}`);
+    console.log("Setting up wallet");
+    await this.walletSetup();
+    console.log("Running AlphaBot....");
+    this.schedule();
+
+    this.readLastBuyTrade()
+    this.readLastSellTrade()
+    
+    while (this.botConfig.botMode !== BotMode.stop ) {
+      let action: TradingMode;
+      const tradingHalted = await this.isTradingHalted();
       if (tradingHalted) {
         action = TradingMode.paused
       } else {
         await this.injestTradingData(interval)
       }
     }
+
     if (this.oneMinuteChart.length > 1080) {
       await this.readFromFile(ChartInterval.OneMinute)
     }
   }
 
-  private async executeAction(action: TradingMode) {
-    const tradingWallet = await this.openWallet(this.keystore1Password)
+  public async executeAction(action: TradingMode) {
+    const tradingWallet = await this.openWallet(this.keystore1Password);
     switch (action) {
       case TradingMode.buy:
         await this.buy(tradingWallet)
@@ -174,17 +193,27 @@ export class AlphaBot {
     let market: TradingMode
     let signal: Signal
 
-    await this.tradingIndicators.getRsi(this.fifteenMinuteChart)
-    await this.writeToFile(this.tradingIndicators.rsi, 'rsi')
-
     // find tx records and add them to the cache
-    if (this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date) {
-      if (this.txRecords.length < 1) this.txRecords.push(this.buyOrders.slice(-1)[0])
+    if(this.buyOrders.length >= 1 && this.sellOrders.length >= 1) {
+      if(this.buyOrders.slice(-1)[0].date > this.sellOrders.slice(-1)[0].date ) {
+        if(this.txRecords.length < 1) this.txRecords.push(this.buyOrders.slice(-1)[0])
+      } else {
+        if(this.txRecords.length < 1) this.txRecords.push(this.sellOrders.slice(-1)[0])
+      }
     } else {
-      if (this.txRecords.length < 1) this.txRecords.push(this.sellOrders.slice(-1)[0])
+      let Empty: TxDetail = {
+        date: this.botConfig.startTime,
+        action: TradingMode.paused,
+        asset: assetsBUSD,
+        amount: '',
+        assetPrice: this.oneMinuteChart[this.oneMinuteChart.length - 1],
+        result: 'Empty',
+        rsi: this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1],
+      };
+      this.txRecords.push(Empty)
     }
 
-    const timeAlive = await this.getTimeDifference(this.botConfig.startTime)
+    const timeAlive = this.getTimeDifference(this.botConfig.startTime) 
     // dont trade anything for first 1 minutes regardless of if there is a full chart history
     if (this.fiveMinuteChart.length - 1 < 72 || +timeAlive.timeInMinutes <= 1) {
       const percentageComplete = ((this.fiveMinuteChart.length - 1) / 72) * 100
@@ -195,37 +224,47 @@ export class AlphaBot {
       console.log(log)
       await this.executeAction(TradingMode.hold)
     } else {
-      console.log(`Collecting trading signals for ${interval}`)
-      console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`)
-      console.log(`Last Price: ${this.asset.chain} $`, this.oneMinuteChart[this.oneMinuteChart.length - 1])
-      const bal = await this.getSynthBalance()
-      console.log(bal.sbtc.formatedAssetString())
-      console.log(bal.sbtcb.baseAmount !== null ? bal.sbtcb.formatedAssetString() : `BTCB: 0`)
-      console.log(bal.sbusd.formatedAssetString())
-      try {
-        const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD)
-        const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD)
-        console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
-        console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
-      } catch (error) {
-        console.log(error)
+      await this.tradingIndicators.getRsi(this.fifteenMinuteChart);
+      await this.writeToFile(this.tradingIndicators.rsi, "rsi");
+      console.log(`Collecting trading signals for ${interval}`);
+      console.log(`Rsi: ${this.tradingIndicators.rsi[this.tradingIndicators.rsi.length - 1]}`);
+      console.log(
+        `Last Price: ${this.asset.chain} $`,
+        this.oneMinuteChart[this.oneMinuteChart.length - 1]
+      );
+      const bal = await this.getSynthBalance();
+      if(bal ) {
+        console.log(bal.sbtc.formatedAssetString());
+        console.log(bal.sbusd.formatedAssetString());
+        try {
+          const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+          console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
+        }  catch (error) { 
+          console.log(error)
+        }
       }
-
-      signal = await this.signal(this.fifteenMinuteChart, 15)
-      this.signalTracker.push(
-        `${signal.decision}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`,
-      )
-      market = await this.checkWalletBal(signal)
-      await this.executeAction(market)
-    }
+      signal = await this.signal(this.fifteenMinuteChart, Fifteen);
+      this.signalTracker.push(`${signal.decision}, ${this.asset.chain} $${this.oneMinuteChart[this.oneMinuteChart.length - 1]}`)
+      market = await this.checkWalletBal(signal);
+      // Execute action based on other conditions
+      await this.executeAction(market);
+      if(this.userBuyOrder || this.userSellOrder) {
+        console.log(this.userBuyOrder)
+      }
+    } 
   }
+
   // ----------------------------------- Data collection for intervals -------------------------------
   public async dataCollectionMinute(start: Boolean, interval: ChartInterval) {
-    this.asset = assetsBTC
-    console.log(`Collecting ${this.asset.ticker} pool price`)
-    await this.readFromFile(interval)
-    const highlow = this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart, 1080)
-    console.log(`One minute chart highs and lows`, highlow.high.slice(-1), highlow.low.slice(-1))
+    this.asset = assetsBTC;
+    console.log(`Collecting ${this.asset.ticker} pool price`);
+    try {
+      await this.readFromFile(interval);
+      const highlow = this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart, 1080);
+      console.log(`One minute chart highs and lows`, highlow.high.slice(-1), highlow.low.slice(-1));
+    } catch (e) {
+      console.log( `No 1min chart found, starting from index 0`)
+    }
 
     while (start) {
       // One minute
@@ -256,7 +295,9 @@ export class AlphaBot {
   }
   public async dataCollectionFifteenMinutes(start: Boolean, interval: ChartInterval) {
     while (start) {
-      const filtered = this.oneMinuteChart.filter((value, index) => (index + 1) % 15 === 0)
+      const filtered = this.oneMinuteChart.filter(
+        (value, index) => (index + 1) % Fifteen === 0
+      );
       if (this.fifteenMinuteChart.length < 1) {
         this.fifteenMinuteChart.push(...filtered)
       } else {
@@ -331,40 +372,52 @@ export class AlphaBot {
   }
 
   private async checkWalletBal(signal: Signal): Promise<TradingMode> {
-    const lastTradeTime = new Date(this.txRecords[this.txRecords.length - 1].date)
-    const tradeTimeDifference = this.getTimeDifference(lastTradeTime) // add wait of 15 minutes before the next trade.
-    const bal = await this.getSynthBalance()
-    const hasTxRecords = this.txRecords.length > 0
-    try {
-      const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD)
-      const lastAction = this.txRecords[this.txRecords.length - 1].action
-      console.log(`Last action: ${this.txRecords[this.txRecords.length - 1].action}`)
-      console.log(
-        `last trade was: ${tradeTimeDifference.timeInMinutes} ago at price ${
-          this.txRecords[this.txRecords.length - 1].assetPrice
-        }`,
-      )
-      console.log(`Signal is: ${signal.decision}`)
-      if (signal.type === TradingMode.buy && lastAction != 'buy' && +tradeTimeDifference.timeInMinutes >= 30) {
-        console.log(`Spending: `, bal.sbusd.formatedAssetString())
-        const decision = bal.sbusd.assetAmount.amount().toNumber() > tradingAmount ? TradingMode.buy : TradingMode.hold
-        if (decision == TradingMode.buy) this.signalTracker.push(`Buying btc`)
-        return decision
-      } else if (signal.type === TradingMode.sell && lastAction != 'sell' && +tradeTimeDifference.timeInMinutes >= 30) {
-        console.log(`Selling: `, bal.sbtc.formatedAssetString())
-        const decision = sbusd.assetAmount.amount().toNumber() > tradingAmount + 2 ? TradingMode.sell : TradingMode.hold
-        if (decision == TradingMode.sell) this.signalTracker.push(`Selling btc`)
-        return decision
-      } else {
-        if (hasTxRecords) {
-          console.log('Last tx record:', this.txRecords[this.txRecords.length - 1])
-        }
-        console.log(`BTC balance in Busd:`, sbusd.assetAmount.amount().toNumber())
-        return TradingMode.hold
+    const lastTradeTime =  this.txRecords.length > 1 ? new Date(this.txRecords[this.txRecords.length - 1].date) : this.botConfig.startTime
+    const tradeTimeDifference = this.getTimeDifference(lastTradeTime); // add wait of 5 minutes before the next trade. 
+    const bal = await this.getSynthBalance(); 
+    const hasTxRecords = this.txRecords.length > 0;
+
+    const sbusdinBTC = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+    const lastAction = this.txRecords[this.txRecords.length -1].action;
+    
+    this.logTradeInfo(lastAction, tradeTimeDifference, signal);
+
+    if (signal.type === TradingMode.buy && +tradeTimeDifference.timeInMinutes >= WAIT_TIME_BEFORE_NEXT_TRADE) {
+        return this.makeBuyDecision(bal.sbusd);
+    } else if (signal.type === TradingMode.sell && +tradeTimeDifference.timeInMinutes >= WAIT_TIME_BEFORE_NEXT_TRADE) {
+        return this.makeSellDecision(sbusdinBTC);
+    } else {
+        return this.makeHoldDecision(hasTxRecords, sbusdinBTC);
+    } 
+  }
+
+  private logTradeInfo(lastAction: string, tradeTimeDifference: Time, signal: Signal) {
+      console.log(`Last action: ${lastAction}`);
+      console.log(`last trade was: ${tradeTimeDifference.timeInMinutes} ago`);
+      console.log(`Signal is: ${signal.decision}`);
+  }
+
+  private makeBuyDecision(balSbusd: CryptoAmount): TradingMode {
+      console.log(`Spending: `, balSbusd.formatedAssetString());
+      const decision = balSbusd.assetAmount.amount().toNumber() > tradingAmount ? TradingMode.buy : TradingMode.hold;
+      if (decision == TradingMode.buy) this.signalTracker.push(`Buying btc`);
+      return decision;
+  }
+
+  private makeSellDecision(sbusdinBTC: CryptoAmount): TradingMode {
+      console.log(`Selling: `, sbusdinBTC.formatedAssetString());
+      const decision = sbusdinBTC.assetAmount.amount().toNumber() > tradingAmount + 2 ? TradingMode.sell : TradingMode.hold;
+      if (decision == TradingMode.sell) this.signalTracker.push(`Selling btc`);
+      else { console.log(`Trading mode : ${decision}`); }
+      return decision;
+  }
+
+  private makeHoldDecision(hasTxRecords: boolean, sbusdinBTC: CryptoAmount): TradingMode {
+      if (hasTxRecords) {
+          console.log('Last tx record:', this.txRecords[this.txRecords.length - 1]);
       }
-    } catch (error) {
-      console.log(error)
-    }
+      console.log(`BTC balance in Busd:`, sbusdinBTC.assetAmount.amount().toNumber()); 
+      return TradingMode.hold;
   }
 
   private async signal(chart: number[], interval: number): Promise<Signal> {
@@ -380,16 +433,10 @@ export class AlphaBot {
     // period being passed in is 3 hours
     tradeSignal.histogram = macd.histogram[macd.histogram.length - 1] > 0 ? true : false
 
-    const sma = await this.tradingIndicators.getSma(chart, interval)
-    const ema = await this.tradingIndicators.getEma(chart, interval)
-    const highLowPastFifteenMinutes = await this.tradingIndicators.findHighAndLowValues(
-      this.oneMinuteChart.slice(-1080),
-      15,
-    )
-    const highLowPastThreeHours = await this.tradingIndicators.findHighAndLowValues(
-      this.oneMinuteChart.slice(-180),
-      180,
-    )
+    const sma = this.tradingIndicators.getSma(chart, interval);
+    const ema = this.tradingIndicators.getEma(chart, interval);
+    const highLowPastFifteenMinutes = this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart.slice(-1080), Fifteen);
+    const highLowPastThreeHours = this.tradingIndicators.findHighAndLowValues(this.oneMinuteChart.slice(-180), 180)
     console.log(`Past three hours \nHigh ${highLowPastThreeHours.high} \nLow ${highLowPastThreeHours.low}`)
     const psar = await this.tradingIndicators.getParabolicSar(
       highLowPastFifteenMinutes.high,
@@ -405,21 +452,13 @@ export class AlphaBot {
     const percentageGained = this.percentageChangeFromTrade(lastAction, lastTradePrice)
     console.log(`Percentage changed since ${this.txRecords.slice(-1)[0].action}, ${percentageGained.percentageChange}`)
 
+    // coingecko asset price 
+    const coingeckoPrice = await this.tradingIndicators.getCoinGeckoStats()
+
+
     console.log(`last trade ${lastAction}, ${lastTradePrice}`)
-    // analyse ema sma and psar & mcad
-    const tradeDecision = this.tradingIndicators.analyzeTradingSignals(
-      psar.psar,
-      sma,
-      ema,
-      macd.macdLine,
-      macd.signalLine,
-      2,
-      chart,
-      this.fiveMinuteChart,
-      psar.trends,
-      this.oneMinuteChart,
-      lastTrade,
-    )
+    // analyse ema sma and psar & mcad 
+    const tradeDecision = this.tradingIndicators.analyzeTradingSignals(psar.psar, sma, ema, macd.macdLine, macd.signalLine, 2, chart, this.fiveMinuteChart, psar.trends, this.oneMinuteChart, lastTrade, coingeckoPrice, this.halfHourChart, this.OneHourChart)
     tradeSignal.decision = tradeDecision.tradeSignal
     tradeSignal.type = tradeDecision.tradeType
     return tradeSignal
@@ -437,16 +476,17 @@ export class AlphaBot {
     if (isNaN(assetPrice)) {
       throw new Error('Invalid asset price')
     }
+  
+    const percentageChange = ((assetPrice - lastTradePrice) / lastTradePrice);
+    let direction = "";
 
-    const percentageChange = (assetPrice - lastTradePrice) / lastTradePrice
-    let direction = ''
-
-    if (lastTradeAction === 'buy') {
-      direction = percentageChange >= 0 ? 'positive' : 'negative'
-    } else if (lastTradeAction === 'sell') {
-      direction = percentageChange <= 0 ? 'positive' : 'negative'
+  
+    if (lastTradeAction === "buy") {
+      direction = percentageChange >= 0 ? "positive" : "negative";
+    } else if (lastTradeAction === "sell") {
+      direction = percentageChange <= 0 ? "positive" : "negative";
     } else {
-      throw new Error('Invalid last trade action')
+      ("Invalid last trade action");
     }
 
     return { percentageChange, direction }
@@ -492,17 +532,30 @@ export class AlphaBot {
 
   // Read previous trades
   private async readLastSellTrade() {
-    const result: TxDetail = JSON.parse(fs.readFileSync(`sellBTCtxRecords.json`, 'utf8'))
-    // make sure its a unique trade
-    if (this.sellOrders.slice(-1)[0] != result) {
-      this.sellOrders.push(result)
+    try {
+      const result: TxDetail = JSON.parse(
+        fs.readFileSync(`sellBTCtxRecords.json`, "utf8")
+      );
+      // make sure its a unique trade 
+      if(this.sellOrders.slice(-1)[0] != result){
+        this.sellOrders.push(result)
+      }
+    } catch (error) {
+      console.log(`No Previous trades found`)
     }
   }
   private async readLastBuyTrade() {
-    const result: TxDetail = JSON.parse(fs.readFileSync(`buyBUSDtxRecords.json`, 'utf8'))
-    // make sure its a unique trade
-    if (this.buyOrders.slice(-1)[0] != result) {
-      this.buyOrders.push(result)
+
+    try {
+      const result: TxDetail = JSON.parse(
+        fs.readFileSync(`buyBUSDtxRecords.json`, "utf8")
+      ); 
+      // make sure its a unique trade 
+      if(this.buyOrders.slice(-1)[0] != result){
+        this.buyOrders.push(result)
+      }
+    } catch (error) {
+      console.log(`No previous trades found`)
     }
   }
   // -------------------------------- Wallet actions ------------------------------------
@@ -529,14 +582,16 @@ export class AlphaBot {
    * @param tradingWallet
    */
   private async sell(tradingWallet: TradingWallet) {
+    console.log(`Selling btc with amount in trading wallet`)
     const pools = await this.thorchainCache.thornode.getPools()
     const busdSynthPaused = pools.find((pool) => pool.asset === `${assetsBUSD.chain}.${assetsBUSD.symbol}`)
     const bal = await this.getSynthBalance()
 
-    const sbusd = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD)
-    const sellAmount = sbusd.assetAmount.amount().toNumber() - 1
+    const sbusdinBTC = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
+    const sellAmount = sbusdinBTC.assetAmount.amount().toNumber() - 1
     const busdMinusOne = new CryptoAmount(assetToBase(assetAmount(sellAmount)), assetsBUSD)
-    const sythBTC = await this.thorchainQuery.convert(busdMinusOne, bal.sbtc.asset) // leave a dollar in here so bal is not null
+    const sythBTC = await this.thorchainQuery.convert(busdMinusOne, bal.sbtc.asset) // leave a dollar in here so bal is not null 
+
     // is busd mint available
     if (!busdSynthPaused.synth_mint_paused) {
       const fromAsset = bal.sbtc.asset
@@ -615,29 +670,24 @@ export class AlphaBot {
    * @returns - Synth balance for the wallet
    */
   private async getSynthBalance(): Promise<SynthBalance> {
-    let synthbtc = assetsBTC
-    let synthBUSD = assetsBUSD
-    let synthBTCB = assetsBTCB
+    let synthbtc = assetsBTC;
+    let synthBUSD = assetsBUSD;
 
     try {
-      const address = this.wallet.getAddress(THORChain)
-      const balance = await this.wallet.clients[THORChain].getBalance(address)
-      const bitcoinBal = balance.find((asset) => asset.asset.ticker === synthbtc.ticker)
-        ? balance.find((asset) => asset.asset.ticker === synthbtc.ticker).amount
-        : null
-      const busdBal = balance.find((asset) => asset.asset.ticker === synthBUSD.ticker)
-        ? balance.find((asset) => asset.asset.ticker === synthBUSD.ticker).amount
-        : null
-      const btcbBal = balance.find((asset) => asset.asset.ticker === synthBTCB.ticker)
-        ? balance.find((asset) => asset.asset.ticker === synthBTCB.ticker).amount
-        : null
-
+      const address = this.wallet.clients[THORChain].getAddress();
+      const balance = await this.wallet.clients[THORChain].getBalance(address);
+      const bitcoinBal = balance.find(
+        (asset) => asset.asset.ticker === synthbtc.ticker
+      ) ? balance.find((asset) => asset.asset.ticker === synthbtc.ticker).amount : null;
+      const busdBal = balance.find(
+        (asset) => asset.asset.ticker === synthBUSD.ticker
+      ) ? balance.find((asset) => asset.asset.ticker === synthBUSD.ticker).amount : null;
+      
       const sbalance: SynthBalance = {
         sbusd: new CryptoAmount(busdBal, assetsBUSD),
         sbtc: new CryptoAmount(bitcoinBal, assetsBTC),
-        sbtcb: btcbBal !== null ? new CryptoAmount(btcbBal, assetsBTCB) : new CryptoAmount(baseAmount(0), assetsBTCB),
-      }
-      return sbalance
+      };
+      return sbalance;
     } catch (error) {
       console.log(`Error fetching bal: `, error)
     }
@@ -666,16 +716,12 @@ export class AlphaBot {
   private async displayData() {
     const timeAlive = await this.getTimeDifference(this.botConfig.startTime)
     try {
-      const bal = await this.getSynthBalance()
-      console.log(bal.sbtc.formatedAssetString())
-      console.log(bal.sbusd.formatedAssetString())
-      const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD)
-      const sbusdworthofbtcb = await this.thorchainQuery.convert(bal.sbtcb, assetsBUSD)
+      const bal = await this.getSynthBalance();
+      console.log(bal.sbtc.formatedAssetString());
+      console.log(bal.sbusd.formatedAssetString());
+      const sbusdworthofbtc = await this.thorchainQuery.convert(bal.sbtc, assetsBUSD);
       console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
-      console.log(`BtcB in Busd: ${sbusdworthofbtcb.formatedAssetString()}`)
-    } catch (err) {
-      console.log(`Can't fetch balances`)
-    }
+    }catch (err) {console.log(`Can't fetch balances`)}
 
     console.log(`Buy records: `, this.buyOrders.length)
     console.log(`Sell records: `, this.sellOrders.length)
