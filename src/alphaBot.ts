@@ -59,6 +59,18 @@ const tradePercentage = 0.03 //represented as a number
 const WAIT_TIME_BEFORE_NEXT_TRADE = 5; // in minutes
 const Fifteen = 15
 
+export const getClients = (seed: string) => ({
+  BTC: new BtcClient({ ...defaultBtcParams, phrase: seed }),
+  BCH: new BchClient({ ...defaultBchParams, phrase: seed }),
+  LTC: new LtcClient({ ...defaultLtcParams, phrase: seed }),
+  DOGE: new DogeClient({ ...defaultDogeParams, phrase: seed }),
+  ETH: new EthClient({ ...defaultEthParams, phrase: seed }),
+  AVAX: new AvaxClient({ ...defaultAvaxParams, phrase: seed }),
+  BSC: new BscClient({ ...defaultBscParams, phrase: seed }),
+  GAIA: new GaiaClient({ phrase: seed }),
+  THOR: new ThorClient({ ...defaultThorParams, phrase: seed }),
+})
+
 
 export class AlphaBot {
   private midgardCache: MidgardCache
@@ -237,8 +249,8 @@ export class AlphaBot {
 
       console.log(tradeAssetBalUSD.balance.formatedAssetString())
       try {
-        const sbusdworthofbtc = await this.thorchainQuery.convert(tradeAssetBalBtc.balance, tradeAssetUSDT)
-        console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
+        const stusdworthofbtc = await this.thorchainQuery.convert(tradeAssetBalBtc.balance, tradeAssetUSDT)
+        console.log(`Btc in usdt: ${stusdworthofbtc.formatedAssetString()}`)
       } catch (error) {
         console.log(error)
       }
@@ -371,19 +383,20 @@ export class AlphaBot {
     const tradeTimeDifference = this.getTimeDifference(lastTradeTime); // add wait of 5 minutes before the next trade. 
 
     const tradeAssetBalBtc = (await this.getTradeBalance()).find((bal) => bal.asset === tradeAssetBTC)
+    const tradeAssetBalUsd = (await this.getTradeBalance()).find((bal) => bal.asset === tradeAssetUSDT)
     const hasTxRecords = this.txRecords.length > 0;
 
-    const sbusdinBTC = await this.thorchainQuery.convert(tradeAssetBalBtc.balance, tradeAssetUSDT);
+    const stusdinBTC = await this.thorchainQuery.convert(tradeAssetBalBtc.balance, tradeAssetUSDT);
     const lastAction = this.txRecords[this.txRecords.length -1].action;
     
     this.logTradeInfo(lastAction, tradeTimeDifference, signal);
 
     if (signal.type === TradingMode.buy && +tradeTimeDifference.timeInMinutes >= WAIT_TIME_BEFORE_NEXT_TRADE) {
-        return this.makeBuyDecision(bal.sbusd);
+        return this.makeBuyDecision(tradeAssetBalUsd.balance);
     } else if (signal.type === TradingMode.sell && +tradeTimeDifference.timeInMinutes >= WAIT_TIME_BEFORE_NEXT_TRADE) {
-        return this.makeSellDecision(sbusdinBTC);
+        return this.makeSellDecision(stusdinBTC);
     } else {
-        return this.makeHoldDecision(hasTxRecords, sbusdinBTC);
+        return this.makeHoldDecision(hasTxRecords, stusdinBTC);
     } 
   }
 
@@ -393,26 +406,26 @@ export class AlphaBot {
       console.log(`Signal is: ${signal.decision}`);
   }
 
-  private makeBuyDecision(balSbusd: CryptoAmount): TradingMode {
-      console.log(`Spending: `, balSbusd.formatedAssetString());
-      const decision = balSbusd.assetAmount.amount().toNumber() > tradingAmount ? TradingMode.buy : TradingMode.hold;
+  private makeBuyDecision(balStusd: CryptoAmount): TradingMode {
+      console.log(`Spending: `, balStusd.formatedAssetString());
+      const decision = balStusd.assetAmount.amount().toNumber() > tradingAmount ? TradingMode.buy : TradingMode.hold;
       if (decision == TradingMode.buy) this.signalTracker.push(`Buying btc`);
       return decision;
   }
 
-  private makeSellDecision(sbusdinBTC: CryptoAmount): TradingMode {
-      console.log(`Selling: `, sbusdinBTC.formatedAssetString());
-      const decision = sbusdinBTC.assetAmount.amount().toNumber() > tradingAmount + 2 ? TradingMode.sell : TradingMode.hold;
+  private makeSellDecision(stusdinBTC: CryptoAmount): TradingMode {
+      console.log(`Selling: `, stusdinBTC.formatedAssetString());
+      const decision = stusdinBTC.assetAmount.amount().toNumber() > tradingAmount + 2 ? TradingMode.sell : TradingMode.hold;
       if (decision == TradingMode.sell) this.signalTracker.push(`Selling btc`);
       else { console.log(`Trading mode : ${decision}`); }
       return decision;
   }
 
-  private makeHoldDecision(hasTxRecords: boolean, sbusdinBTC: CryptoAmount): TradingMode {
+  private makeHoldDecision(hasTxRecords: boolean, stusdinBTC: CryptoAmount): TradingMode {
       if (hasTxRecords) {
           console.log('Last tx record:', this.txRecords[this.txRecords.length - 1]);
       }
-      console.log(`BTC balance in Busd:`, sbusdinBTC.assetAmount.amount().toNumber()); 
+      console.log(`BTC balance in tusd:`, stusdinBTC.assetAmount.amount().toNumber()); 
       return TradingMode.hold;
   }
 
@@ -544,7 +557,7 @@ export class AlphaBot {
 
     try {
       const result: TxDetail = JSON.parse(
-        fs.readFileSync(`buyBUSDtxRecords.json`, "utf8")
+        fs.readFileSync(`buyTUSDtxRecords.json`, "utf8")
       ); 
       // make sure its a unique trade 
       if(this.buyOrders.slice(-1)[0] != result){
@@ -555,6 +568,8 @@ export class AlphaBot {
     }
   }
   // -------------------------------- Wallet actions ------------------------------------
+
+  
 
   /**
    *
@@ -700,8 +715,8 @@ export class AlphaBot {
       const tradeAssetBalUSD = (await this.getTradeBalance()).find((bal) => bal.asset === tradeAssetUSDT)
       console.log(tradeAssetBalBtc.balance.formatedAssetString())
       console.log(tradeAssetBalUSD.balance.formatedAssetString())
-      const sbusdworthofbtc = await this.thorchainQuery.convert(tradeAssetBalBtc.balance, tradeAssetUSDT)
-      console.log(`Btc in Busd: ${sbusdworthofbtc.formatedAssetString()}`)
+      const stusdworthofbtc = await this.thorchainQuery.convert(tradeAssetBalBtc.balance, tradeAssetUSDT)
+      console.log(`Btc in Tusd: ${stusdworthofbtc.formatedAssetString()}`)
     } catch (err) {
       console.log(`Can't fetch balances`)
     }
