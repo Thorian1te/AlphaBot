@@ -30,10 +30,11 @@ export enum BotMode {
   stop = 'stop',
 }
 export enum TradingMode {
-  buy = 'buy',
-  sell = 'sell',
-  hold = 'hold',
-  paused = 'paused',
+    buy = 'buy',
+    sell = 'sell',
+    hold = 'hold',
+    paused = 'paused',
+    trade = 'trade'
 }
 
 export type ExponentialMovingAverage = {
@@ -111,6 +112,19 @@ export type HighAndLow = {
 }
 
 export type TradeAnalysis = {
-  tradeSignal: string
-  tradeType: TradingMode
+    tradeSignal: string
+    tradeType: TradingMode
 }
+
+export type Order = {
+    price: number
+    quantity: number
+}
+
+export enum Direction {
+    Upward = "Upward",
+    Downward = "Downward",
+    Stable = "Stable",
+  }
+  
+  
